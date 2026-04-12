@@ -4,19 +4,24 @@ GitHub仓库：[VibeCampus/VibeCampus](https://github.com/VibeCampus/VibeCampus)
 ```
 .
 |-- README.md
-|-- VibeCampus-AdminPanel//管理端
-|-- VibeCampus-Backend//后端
+|-- VibeCampus-AdminPanel
+|   `-- 将管理端的网页代码放在这个文件夹.txt
+|-- VibeCampus-Backend
 |   |-- HELP.md
 |   |-- mvnw
 |   |-- mvnw.cmd
 |   |-- pom.xml
 |   `-- src
-|-- VibeCampus-Frontend//前端
-`-- docs//文档
+|-- VibeCampus-Frontend
+|   `-- 将前端的网页项目放在这个文件夹.txt
+|-- VibeCampus-MiniProgram
+|   `-- 将小程序代码放在这个文件夹.txt
+`-- docs
     |-- 开发环境搭建及团队开发流程说明(项目开发指南).md
     |-- 校园bbs开发技术文档.md
     |-- 校园bbs开发技术文档.pdf
     `-- 校园墙产品设计文档_完整版.docx
+
 ```
 
 

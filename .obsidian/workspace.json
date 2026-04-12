@@ -186,18 +186,18 @@
   "active": "75578207009a26dd",
   "lastOpenFiles": [
     "docs/开发环境搭建及团队开发流程说明(项目开发指南).md",
-    "docs/校园bbs开发技术文档.pdf",
-    "README.md",
-    "VibeCampus-Backend/src/main/resources/application.yml",
     "docs/校园bbs开发技术文档.md",
-    "VibeCampus-AdminPanel",
+    "README.md",
+    "VibeCampus-MiniProgram/将小程序代码放在这个文件夹.txt",
+    "VibeCampus-MiniProgram/新建 文本文档.txt",
+    "VibeCampus-MiniProgram",
     "新建文件夹",
-    "VibeCampus-Frontend",
-    "VibeCampus-Backend/HELP.md",
-    "VibeCampus-Backend/pom.xml",
-    "VibeCampus-Backend/src/main/java/cn/ayeez/vibecampusbackend/VibeCampusBackendApplication.java",
-    "VibeCampus-Backend/src/test/java/cn/ayeez/vibecampusbackend/VibeCampusBackendApplicationTests.java",
-    "VibeCampus-Backend/src/main/java/cn/ayeez/vibecampusbackend",
-    "VibeCampus-Backend/src/test/java/cn/ayeez/vibecampusbackend"
+    "VibeCampus-AdminPanel/将管理端的网页代码放在这个文件夹.txt",
+    "VibeCampus-AdminPanel/新建 文本文档.txt",
+    "VibeCampus-Frontend/将前端的网页项目放在这个文件夹.txt",
+    "VibeCampus-Frontend/新建 文本文档.txt",
+    "docs/校园bbs开发技术文档.pdf",
+    "VibeCampus-Backend/src/main/resources/application.yml",
+    "VibeCampus-Backend/HELP.md"
   ]
 }
