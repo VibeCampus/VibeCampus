@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: VibeCampus-Backend
+  profiles:
+    # local | test | prod；本地未设置环境变量时默认 local（需自备 application-local.yml，见 application-local.example.yml）
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true

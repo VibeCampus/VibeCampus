@@ -1,0 +1,32 @@
+# 后端 CI：使用 test 配置；未注入 Secrets 时走 application-test.yml 中的 H2 默认值。
+# 部署到「测试 / 生产」服务器时，请在对应 GitHub Environment 中配置同名 Secrets，并在部署脚本里设置 SPRING_PROFILES_ACTIVE 与 SPRING_DATASOURCE_* 等变量。
+
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "VibeCampus-Backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "VibeCampus-Backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: VibeCampus-Backend
+    env:
+      SPRING_PROFILES_ACTIVE: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Maven verify
+        run: mvn -B verify

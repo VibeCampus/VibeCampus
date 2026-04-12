@@ -1,191 +1,96 @@
+# VibeCampus
 
-GitHub仓库：[VibeCampus/VibeCampus](https://github.com/VibeCampus/VibeCampus)
-## 目录结构
-```
-.
-|-- README.md
-|-- VibeCampus-AdminPanel
-|   `-- 将管理端的网页代码放在这个文件夹.txt
-|-- VibeCampus-Backend
-|   |-- HELP.md
-|   |-- mvnw
-|   |-- mvnw.cmd
-|   |-- pom.xml
-|   `-- src
-|-- VibeCampus-Frontend
-|   `-- 将前端的网页项目放在这个文件夹.txt
-|-- VibeCampus-MiniProgram
-|   `-- 将小程序代码放在这个文件夹.txt
-`-- docs
-    |-- 开发环境搭建及团队开发流程说明(项目开发指南).md
-    |-- 校园bbs开发技术文档.md
-    |-- 校园bbs开发技术文档.pdf
-    `-- 校园墙产品设计文档_完整版.docx
+**核心价值：为同学们提供交友服务**——在同一校园里，帮助大家更容易认识新朋友、发起互动、建立信任与归属感。产品以 **校园墙 / 校园 BBS** 为载体：信息流、分区发帖、点赞与评论等能力，都是围绕「让人与人连起来」而设计；管理后台则保障社区氛围与安全边界。
 
-```
-
-
-
-## 开发流程
-### 开发环境依赖
-在开始编码前，请确保你的本地机器已安装以下软件及版本：
-
-| 组件          | 版本要求                 | 说明                              |
-| ----------- | -------------------- | ------------------------------- |
-| **JDK**     | 21                   | 用 OpenJDK                       |
-| **Node.js** |                      |                                 |
-| **MySQL**   | 8.0                  | 数据库服务                           |
-| **Redis**   | 7.x                  | 缓存与会话管理                         |
-| **Maven**   | 3.6+                 | Java 依赖管理                       |
-| **Docker**  | 20.10+               | 用于快速部署中间件 (RabbitMQ, ES, MinIO) |
-| **IDE**     | IDEA 2023+ / VS Code | 推荐 IDEA 用于后端，VS Code 用于前端       |
-### 本地环境搭建步骤
-
-#### 3.1 后端环境 (Java/SpringBoot)
-
-1. **代码拉取**：
-```
-git clone https://github.com/VibeCampus/VibeCampus.git
-cd VibeCampus/VibeCampus-Backend
-``` 
-
-2. **依赖配置**：    
-    - 使用 IntelliJ IDEA 打开项目。
-    - Maven 会自动下载依赖。若网络不佳，建议配置阿里云镜像源。
-
-3. **数据库初始化**：
-    - 启动本地 MySQL 8.0 服务。
-    - 在数据库中创建新库：`CREATE DATABASE vibecampus DEFAULT CHARSET utf8mb4;`
-    - 执行根目录下的初始化 SQL 脚本，初始化表结构。
-
-4. **配置文件修改**：
-    - 编辑 `src/main/resources/application.yml。
-    - 修改数据库连接、Redis 地址（若本地未安装 Redis，建议使用 Docker 启动）：
-```
-spring.datasource.url=jdbc:mysql://localhost:3306/vibecampus?useUnicode=true&characterEncoding=utf-8&useSSL=false
-spring.datasource.username=root
-spring.datasource.password=your_password
-spring.redis.host=localhost
-spring.redis.port=6379
-```
-
-5. **启动服务**：
-    - 运行 `VibeCampusBackendApplication.java` 中的 `main` 方法。
-    - 控制台输出 `Tomcat started on port 8080` 即代表启动成功。
-
-#### 3.2 前端环境 (Vue/UniApp)
-
-
-#### 3.3 数据库与中间件 (Docker 快速启动)
-
-
-### 4. 团队协作流程 (Git Flow)
-
-为了保证代码质量与版本稳定性，团队需严格遵守以下 Git 工作流：
-
-1. **分支策略**：
-    
-    - `main`：生产环境分支，保护分支，严禁直接推送。
-    - `develop`：开发集成分支，对应当前开发版本的最新代码。
-    - `feature/*`：功能开发分支，基于 `develop` 切出。
-    - `hotfix/*`：紧急修复分支，基于 `main` 切出。
-2. **开发流程**：
-    
-    - **切分支**：开始新功能前，从 `develop` 拉取新分支，命名规则为 `feature/模块名-日期`（例如 `feature/user-auth-20260412`）。
-    - **编码与提交**：
-        - 遵循团队代码规范（Checkstyle/ESLint）。
-        - Commit Message 格式：`<type>(模块): 描述`（例如 `feat(user): add login interface`）。
-    - **同步代码**：每天开始工作前，先 `git pull origin develop` 更新 `develop` 最新代码，解决可能的冲突。
-    - **推送代码**：开发完成后，推送到远程仓库。
-    - **发起 PR (Pull Request)**：
-        - 目标分支选择 `develop`。
-        - 在 PR 描述中详细说明修改内容、涉及的问题单号。
-        - **必须**至少有一名其他成员 Code Review 通过后，方可合并。
-3. **代码审查 (Code Review) 重点**：
-    
-    - 是否符合《校园bbs开发技术文档》中的架构设计？
-    - 是否存在 SQL 注入、XSS 等安全漏洞？
-    - 是否添加了对应的单元测试（后端 JUnit）？
-
-### 5. 接口联调规范
-
-
-## 分支说明
-
-**目的**：确保 `main` 分支始终处于可发布（Stable）状态，隔离开发中的功能（Unstable），防止未经测试的代码直接上线。
-#### 1. 核心分支定义
-
-| 分支名称          | 远程路径             | 用途                      | 部署环境 |
-| ------------- | ---------------- | ----------------------- | ---- |
-| **`main`**    | `origin/main`    | 存放线上运行的稳定代码。            | 生产环境 |
-| **`develop`** | `origin/develop` | 集成所有开发完成的新功能，用于日常联调和测试。 | 测试环境 |
-
-#### 2. 日常开发流程
-
-
-**步骤 1：开工前先“同步” (避免冲突)**  
-在你开始写代码前，或者修改文件前，先拉取最新的代码。因为你的队友可能刚提交了代码，如果你直接写，可能会覆盖别人的成果。
-```bash
-# 确保你在 develop 分支
-git checkout develop
-
-# 拉取远程最新的 develop 代码
-git pull origin develop
-```
-
-
-**步骤 2：写代码 & 调试**
-- 直接在 `develop` 分支上修改文件。
-- **建议**：每次只专注于一个小功能点（比如“改一下登录按钮样式”或“修一下发帖接口”），尽快完成，不要让代码在本地停留太久。
-
-
-**步骤 3：提交前再“同步” (解决冲突)**  
-在你点击提交按钮前，**强烈建议**再执行一次 `git pull`。这是防止代码冲突的最有效手段。
-```bash
-git pull origin develop
-```
-
-- 如果提示 `Already up to date`，说明没人动代码，你可以安全提交。
-- **如果提示有冲突（Conflict），请在本地解决冲突，然后重新编译运行，确保没问题后再进行下一步！！！！！！！！**
-
-**步骤 4：推送到远程**  
-将你的代码推送到 GitHub。
-```bash
-git add .
-git commit -m "描述你改了什么，例如：修复了登录页的样式溢出"
-git push origin develop
-```
-
----
-#### 3. 发布上线流程
-
-当我们要准备上线一个新版本（比如修复了一堆 Bug，或者上线了新功能）时，才需要操作 `main`分支。
-
-**由阿叶Ayeez执行以下操作：**
-
-1. **确保 `develop` 是稳定的**：让大家都把代码推上来，并且经过了简单的联调测试。
-2. **合并代码**：
-```bash
-# 切换到本地 main 分支
-git checkout main
-
-# 拉取远程最新的 main (以防万一)
-git pull origin main
-
-# 从 develop 合并代码进来
-git merge develop
-
-# 推送到远程 main
-git push origin main
-```
-
-3. **打标签 (Tag)**：  
-    在 GitHub 的 Release 页面，基于最新的 `main` 提交打一个 Tag（例如 `v1.0.1`），方便以后回滚。
+**在线仓库：** [github.com/VibeCampus/VibeCampus](https://github.com/VibeCampus/VibeCampus)
 
 ---
 
-### 规则怪谈（必须遵守！！！）
-为了防止 `develop` 分支炸掉，请遵循这几点：
-1. **绝不提交敏感信息**：不要把数据库密码、个人配置文件提交到 `develop`。
-2. **绝不强制推送 (Force Push)**：**严禁**使用 `git push --force`。如果 `push` 被拒绝，请先 `pull`。
-3. **编译通过才能推**：推送到远程前，确保你的代码在本地 `npm run build` 或后端打包是成功的。不要把一堆报错的代码扔给队友。
+## 项目是做什么的？
+
+| 问题           | 说明                                                                          |
+| ------------ | --------------------------------------------------------------------------- |
+| **解决什么**     | 把「想认识同校同学、想被看见、想有话题可聊」的需求，落到可浏览、可回复、可持续互动的线上空间里；表白墙等分区既是校园日常话题入口，也是自然破冰的场景。 |
+| **谁在用**      | 学生是交友与内容的主角；管理员维护秩序，避免骚扰与违规内容伤害体验。                                          |
+| **和通用论坛的区别** | 场景与身份都锚定**本校**：更利于同圈层匹配与线下延伸；技术上演进上可支持实名/匿名、统一身份认证等（见版本规划）。                 |
+
+一句话判断：**这是面向校园同学的交友与社交产品，配套多端与后台治理能力；后端以统一 REST 支撑各端。**
+
+---
+
+## 主要功能（怎么理解这个产品）
+
+以下为**产品能力**视角的归纳，侧重「如何支撑交友与互动」；实现进度以仓库代码与 [《校园 bbs 开发技术文档》](docs/校园bbs开发技术文档.md) 中的版本规划为准。
+
+**MVP 阶段目标（发帖—浏览—互动闭环）**
+
+- **账号与个人**：学号 + 密码注册登录（先做本地账号）；个人主页展示昵称、头像、发帖数等。
+- **内容与浏览**：发布文字 + 最多 9 张图；帖子分类（如表白墙、二手、失物招领等——既服务交友话题，也覆盖校园生活信息）；首页信息流按时间倒序；帖子详情与点赞。
+- **互动**：帖子下的单级评论；点赞仅展示数量（无点赞列表）——降低互动门槛，方便表达好感或参与话题。
+- **管理**：后台删除违规帖子、封禁账号等基础治理能力。
+
+**后续大版本方向（节选）**
+
+- 校园统一身份认证、前台匿名发帖与后台实名、视频与二级评论、敏感词与待审核流、举报、搜索与 Redis 缓存、热度榜等；长期还可扩展私信、通知等更贴近「一对一交友与关系维护」的能力（详见技术文档 **1.0 / 2.0** 章节）。
+
+---
+
+## 多端形态
+
+| 端            | 目录                       | 说明                                           |
+| ------------ | ------------------------ | -------------------------------------------- |
+| **PC Web**   | `VibeCampus-Frontend`    | Vue 3 技术栈，适合浏览器内完整浏览与发帖。                     |
+| **小程序 / H5** | `VibeCampus-MiniProgram` | UniApp，一套代码多端发布，与 PC 共用同一套 REST。             |
+| **管理后台**     | `VibeCampus-AdminPanel`  | 面向管理员的内容与账号管理界面。                             |
+| **后端 API**   | `VibeCampus-Backend`     | Spring Boot 聚合多模块，对外统一 REST（建议前缀 `/api/v1`）。 |
+
+---
+
+## 技术栈一览
+
+| 方向 | 选型 |
+| ---- | ---- |
+| 后端 | Java 21，Spring Boot 4.x，MyBatis，Spring Security，MySQL |
+| PC 端 | Vue 3，Vite，Element Plus，Pinia |
+| 移动端 | UniApp（微信小程序、H5 等） |
+
+更完整的选型表、中间件与演进路线见技术文档中的 **「技术栈选用」**。
+
+---
+
+## 仓库里有什么？（结构速览）
+
+```
+VibeCampus/
+├── VibeCampus-Backend/      # 后端：Maven 多模块（如 user / post / comment / admin），启动入口 vibecampus-bootstrap
+├── VibeCampus-Frontend/     # PC 端 Web
+├── VibeCampus-MiniProgram/  # 小程序与移动端
+├── VibeCampus-AdminPanel/   # 管理端
+└── docs/                    # 需求、设计、技术与协作说明
+```
+
+后端业务包根名为 `cn.ayeez.vibecampus`；各业务模块内按 **controller → service → mapper** 分层，便于阅读与协作。
+
+---
+
+## 文档与协作
+
+| 文档                                            | 适合谁读         | 内容                                           |
+| --------------------------------------------- | ------------ | -------------------------------------------- |
+| [《项目开发指南》](<docs/开发环境搭建及团队开发流程说明(项目开发指南).md>) | 参与者          | 本地环境、后端 `local` / `test` / `prod` 配置、Git 流程等 |
+| [《校园 bbs 开发技术文档》](docs/校园bbs开发技术文档.md)        | 产品 / 开发 / 架构 | 版本规划、难点、技术选型与演进                              |
+
+环境搭建与分支约定**不在本 README 展开**，请直接打开《项目开发指南》。
+
+---
+
+
+## 参与贡献
+
+欢迎通过 Issue / Pull Request 参与。合并前请阅读 [《项目开发指南》](<docs/开发环境搭建及团队开发流程说明(项目开发指南).md>) 中的分支与提交约定，并**勿提交**数据库密码、`application-local.yml` 等敏感文件。
+
+---
+
+## 许可证
+
+仓库当前未附带 `LICENSE`；若计划开源或对外分发，需由维护者明确许可条款。

@@ -1,5 +1,8 @@
 HELP.md
 target/
+
+# 本地开发配置（含个人数据库密码等，禁止提交）
+vibecampus-bootstrap/src/main/resources/application-local.yml
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
