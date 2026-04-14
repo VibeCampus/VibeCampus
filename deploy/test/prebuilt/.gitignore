@@ -1,0 +1,6 @@
+.env
+backend/*.jar
+web/dist/
+_bundle/
+*.tar
+*.tgz

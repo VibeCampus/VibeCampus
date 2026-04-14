@@ -56,5 +56,6 @@ export { default as commentApi } from './comment'
 export { default as userApi } from './user'
 export { default as messageApi } from './message'
 export { default as adminApi } from './admin'
+export { default as pingApi } from './ping'
 
 export default http
