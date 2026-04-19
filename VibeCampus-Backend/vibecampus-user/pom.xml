@@ -13,6 +13,7 @@
     <name>vibecampus-user</name>
     <description>User accounts and profiles</description>
 
+    <!-- 本会话为登录示例补充：Bean Validation、BCrypt（仅 crypto，非完整 Security 链） -->
     <dependencies>
         <dependency>
             <groupId>cn.ayeez</groupId>
@@ -22,9 +23,24 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
+        <!-- @Valid、@NotBlank 等校验，与 AuthController 入参绑定 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- PasswordEncoder / BCryptPasswordEncoder，供 AuthServiceImpl 验密 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
