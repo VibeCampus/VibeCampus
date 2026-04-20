@@ -38,6 +38,15 @@ public class AuthServiceImpl implements AuthService {
             log.info("登录失败：用户不存在或未设置密码，account={}", request.getAccount());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "账号或密码错误");
         }
+        
+        // DEBUG: 输出数据库中的密码哈希值用于排查问题
+        log.debug("=== DEBUG 信息 ===");
+        log.debug("从数据库读取的 password_hash: [{}]", user.getPasswordHash());
+        log.debug("password_hash 长度: {}", user.getPasswordHash().length());
+        log.debug("是否以 $2a$ 开头: {}", user.getPasswordHash().startsWith("$2a$"));
+        log.debug("输入的明文密码: [{}]", request.getPassword());
+        log.debug("==================");
+        
         // 3) 明文密码与库中 password_hash 比对
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             log.info("登录失败：密码错误，userId={}", user.getId());
