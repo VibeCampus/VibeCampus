@@ -2,19 +2,26 @@ name: CI/CD Deploy
 
 on:
   push:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - "VibeCampus-Backend/**"
       - "VibeCampus-Frontend/**"
       - "deploy/**"
       - ".github/workflows/cicd-deploy.yml"
   pull_request:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - "VibeCampus-Backend/**"
       - "VibeCampus-Frontend/**"
       - "deploy/**"
       - ".github/workflows/cicd-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: "Deploy production environment"
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   changes:
@@ -132,17 +139,15 @@ jobs:
     needs: [changes]
     if: >
       (
-        (github.event_name == 'push' && github.ref_name == 'main') ||
-        (github.event_name == 'pull_request' && github.base_ref == 'main')
+        github.event_name == 'workflow_dispatch' &&
+        inputs.deploy_production == true &&
+        github.ref_name == 'main'
       ) &&
       (
+        github.event_name == 'workflow_dispatch' ||
         needs.changes.outputs.backend == 'true' ||
         needs.changes.outputs.frontend == 'true' ||
         needs.changes.outputs.deploy == 'true'
-      ) &&
-      (
-        github.event_name != 'pull_request' ||
-        github.event.pull_request.head.repo.fork == false
       )
     steps:
       - uses: actions/checkout@v4
