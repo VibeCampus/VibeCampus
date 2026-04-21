@@ -7,6 +7,7 @@ import cn.ayeez.vibecampus.user.dto.UserInfo;
 import cn.ayeez.vibecampus.user.mapper.UserMapper;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 import cn.ayeez.vibecampus.user.service.AuthService;
+import cn.ayeez.vibecampus.user.service.JwtTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenService jwtTokenService;
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -47,8 +49,7 @@ public class AuthServiceImpl implements AuthService {
         }
         log.info("登录成功，userId={}", user.getId());
 
-        // TODO: 使用 jjwt / spring-security-oauth2-resource-server 签发 JWT，并设置过期、jti、刷新策略等
-        String token = "stub-token-replace-with-jwt";
+        String token = jwtTokenService.generateAccessToken(user);
 
         UserInfo info = new UserInfo(user.getId(), user.getUsername(), user.getPhone());
         return new LoginResponse(token, info);

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginResponse {
 
-    /** 访问令牌；当前为占位字符串，应替换为 JWT 等 */
+    /** 访问令牌：JWT 字符串 */
     private String token;
     /** 当前登录用户公开信息 */
     private UserInfo user;

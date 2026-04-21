@@ -1,15 +1,28 @@
-# 生产环境：必须由环境变量提供连接信息（部署时在 GitHub Environments「production」等中配置 Secrets，勿写明文）。
-# 未设置 SPRING_DATASOURCE_URL 时启动将失败，避免误用默认库。
+# 生产环境配置（prod）
+# 说明：本文件提交到仓库，所有敏感信息必须通过环境变量注入（建议 GitHub Environments: production）。
+# 未提供必需变量时启动将失败，防止使用错误连接信息或不安全密钥。
+# 推荐在部署环境注入：SPRING_DATASOURCE_*、APP_JWT_SECRET。
 
 spring:
   datasource:
+    # 数据库连接（必填）
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+    # 未设置时使用 MySQL 驱动默认值
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
 
+  # 如需在生产环境启用 Redis，可取消注释并通过环境变量注入
   # data:
   #   redis:
   #     host: ${SPRING_DATA_REDIS_HOST}
   #     port: ${SPRING_DATA_REDIS_PORT:6379}
   #     password: ${SPRING_DATA_REDIS_PASSWORD:}
+
+app:
+  jwt:
+    # JWT 密钥必须注入（至少 32 字节）
+    secret: ${APP_JWT_SECRET}
+    # 可选：不注入时使用默认值
+    expiration-minutes: ${APP_JWT_EXPIRATION_MINUTES:120}
+    issuer: ${APP_JWT_ISSUER:vibecampus}
