@@ -100,6 +100,7 @@ jobs:
         run: |
           mkdir -p _bundle
           docker save ${{ steps.services.outputs.images }} -o _bundle/images-test.tar
+          chmod 644 _bundle/images-test.tar
 
       - name: Upload bundle to test server
         uses: appleboy/scp-action@v0.1.7
@@ -217,6 +218,7 @@ jobs:
         run: |
           mkdir -p _bundle
           docker save ${{ steps.services.outputs.images }} -o _bundle/images-prod.tar
+          chmod 644 _bundle/images-prod.tar
 
       - name: Upload bundle to prod server
         uses: appleboy/scp-action@v0.1.7
