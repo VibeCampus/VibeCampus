@@ -31,6 +31,17 @@ import lombok.Data;
         private String password;
 
         /**
+         * 图形验证码：注册时必填
+         */
+        @NotBlank(message = "验证码不能为空")
+        private String captcha;
+
+        /**
+         * 性别：与前端约定值（男 / 女 / 保密）
+         */
+        private String gender;
+
+        /**
          * 手机号：可选，如果提供则必须符合中国大陆手机号格式
          * - 用于找回密码或接收通知
          * - 数据库中设置为唯一约束

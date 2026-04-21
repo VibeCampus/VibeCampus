@@ -21,7 +21,12 @@ public interface AuthService {
      * 用户注册：验证输入信息，对密码进行BCrypt哈希加密（成本因子10），创建新用户账户
      *
      * @param request 注册请求，包含用户名、密码等基本信息
-     * @return 注册成功后返回用户ID
+     * @return 注册成功后返回令牌与用户摘要
      */
-    Long register(RegisterRequest request);
+    LoginResponse register(RegisterRequest request);
+
+    /**
+     * 用户登出：使当前 access token 失效。
+     */
+    void logout(String authorizationHeader);
 }

@@ -23,6 +23,8 @@ public class UserProfile {
     private String nickname;
     /** 用户邮箱，可用于登录或找回密码 */
     private String email;
+    /** 性别：0-保密/未知，1-男，2-女 */
+    private Integer gender;
     /** 用户状态：0-禁用，1-启用 */
     private Integer status;
 }

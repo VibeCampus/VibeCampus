@@ -14,7 +14,7 @@ public interface UserMapper {
      * 按主键查询单条用户（用于「当前用户」等场景）。
      */
     @Select("""
-            select id, username, phone, password_hash AS passwordHash
+            select id, username, phone, email, gender, password_hash AS passwordHash
             from users
             where id = #{userId}
             """)
@@ -25,7 +25,7 @@ public interface UserMapper {
      * <p>用于 {@code POST /api/auth/login} 根据前端传入的 account 定位用户。</p>
      */
     @Select("""
-            select id, username, phone, email,  password_hash as passwordHash
+            select id, username, phone, email, gender, password_hash as passwordHash
             from users
             where username = #{account} or phone = #{account} or email = #{account}
             limit 1
@@ -43,8 +43,8 @@ public interface UserMapper {
      * @return 插入的记录数（成功为1）
      */
     @Insert("""
-            insert into users (username, password_hash, phone, email, nickname, status)
-            values (#{username}, #{passwordHash}, #{phone}, #{email}, #{nickname}, 1)
+            insert into users (username, password_hash, phone, email, nickname, gender, status)
+            values (#{username}, #{passwordHash}, #{phone}, #{email}, #{nickname}, #{gender}, 1)
             """)
     @Options(useGeneratedKeys = true, keyColumn = "id", keyProperty = "id")
     int insertUser(UserProfile user);

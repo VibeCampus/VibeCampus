@@ -11,4 +11,14 @@ public interface JwtTokenService {
      * 为指定用户签发访问令牌。
      */
     String generateAccessToken(UserProfile user);
+
+    /**
+     * 吊销 access token（用于登出）。
+     */
+    void revokeAccessToken(String authorizationHeader);
+
+    /**
+     * 校验 token 是否已被吊销。
+     */
+    boolean isAccessTokenRevoked(String authorizationHeader);
 }

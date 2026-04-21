@@ -21,4 +21,8 @@ public class LoginRequest {
     /** 图形验证码用户输入；后续可与 captchaId + 缓存答案校验 */
     @NotBlank(message = "验证码不能为空")
     private String captcha;
+
+    /** 验证码会话标识：与 GET /auth/captcha 返回的 captchaId 配对 */
+    @NotBlank(message = "captchaId不能为空")
+    private String captchaId;
 }

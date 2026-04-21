@@ -5,16 +5,13 @@ import cn.ayeez.vibecampus.user.dto.LoginResponse;
 import cn.ayeez.vibecampus.user.dto.RegisterRequest;
 import cn.ayeez.vibecampus.user.service.AuthService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * HTTP 认证入口：路径与前端 {@code baseURL}（默认 {@code /api}）+ {@code /auth/*} 对齐。
@@ -50,7 +47,7 @@ public class AuthController {
      *   <li>URL：{POST /api/auth/register}</li>
      *   <li>Body：{RegisterRequest}，包含用户名、密码等信息</li>
      *   <li>密码处理：使用BCrypt算法进行哈希加密，成本因子为10</li>
-     *   <li>成功：返回 { "userId": 123, "username": "xxx" }}，HTTP 200</li>
+     *   <li>成功：返回 {@link LoginResponse}（含 token 与 user），HTTP 200</li>
      *   <li>失败：由全局处理器返回  { "message": "..." }}</li>
      * </ul>
      *
@@ -58,19 +55,17 @@ public class AuthController {
      * return 包含新用户ID和用户名的响应
      */
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody RegisterRequest request) {
+    public LoginResponse register(@Valid @RequestBody RegisterRequest request) {
         log.info("收到注册请求，username={}", request.getUsername());
+        return authService.register(request);
+    }
 
-        // 调用服务层执行注册逻辑（包括密码BCrypt哈希加密）
-        Long userId = authService.register(request);
-
-        // 构建响应数据
-        Map<String, Object> response = new HashMap<>();
-        response.put("userId", userId);
-        response.put("username", request.getUsername());
-        response.put("message", "注册成功");
-
-        // 返回HTTP 200 状态码
-        return ResponseEntity.ok(response);
+    /**
+     * 用户登出：使当前 Bearer Token 失效。
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        authService.logout(request.getHeader("Authorization"));
+        return ResponseEntity.ok().build();
     }
 }
