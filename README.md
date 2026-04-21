@@ -84,6 +84,23 @@ VibeCampus/
 
 ---
 
+## GitHub Actions CI/CD（测试 / 生产）
+
+仓库已提供自动部署工作流：`.github/workflows/cicd-deploy.yml`。
+
+- `develop` 分支发生 `push` / `pull_request` 时：自动部署到**测试环境**
+- `main` 分支发生 `push` / `pull_request` 时：自动部署到**生产环境**
+- 仅当 `VibeCampus-Backend` / `VibeCampus-Frontend` / `deploy` 有变更时触发部署，并按变更范围只重建对应服务
+- 测试与生产可在同一台云服务器上运行，使用不同 Compose project（`vibecampus-test`、`vibecampus-prod`）隔离容器与数据卷
+
+需在 GitHub 仓库 Secrets 中配置：
+
+- 公共：`SERVER_HOST`、`SERVER_PORT`、`SERVER_USER`、`SERVER_SSH_KEY`、`SERVER_BASE_DIR`
+- 测试：`TEST_MYSQL_ROOT_PASSWORD`、`TEST_MYSQL_DATABASE`、`TEST_MYSQL_USER`、`TEST_MYSQL_PASSWORD`、`TEST_WEB_PORT`
+- 生产：`PROD_MYSQL_ROOT_PASSWORD`、`PROD_MYSQL_DATABASE`、`PROD_MYSQL_USER`、`PROD_MYSQL_PASSWORD`、`PROD_WEB_PORT`
+
+---
+
 ## 本地快速开始（后端 + MySQL）
 
 后端默认使用 `local` Profile（见 `VibeCampus-Backend/vibecampus-bootstrap/src/main/resources/application.yml`），本地运行前需要准备 MySQL 与本地配置文件。

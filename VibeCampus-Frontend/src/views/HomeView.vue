@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const socialStore = useSocialStore()
 const loading = false
+const deployProbeLabel = 'cicd-check-20260421'
 
 const activeCategory = computed(() => route.query.category || '')
 
@@ -49,6 +50,11 @@ function isSocialSubActive(key) {
     <!-- Publish hint -->
     <div class="bg-white border-b border-[#EBEBEB]">
       <div class="max-w-[1100px] mx-auto px-4 py-3 flex items-center gap-3">
+        <span
+          class="shrink-0 text-[12px] px-2 py-1 bg-[#e8f3ff] text-[#1772F6] border border-[#b9d8ff] rounded"
+        >
+          部署验证: {{ deployProbeLabel }}
+        </span>
         <RouterLink to="/post/create"
           class="flex-1 text-[14px] text-[#8590A6] bg-[#F6F6F6] border border-[#EBEBEB] px-4 py-2 cursor-pointer hover:border-[#1772F6] hover:text-[#1772F6] transition-colors">
           分享此刻的想法…

@@ -1,8 +1,5 @@
-# VibeCampus 测试环境（裸机 / 云主机，无域名，HTTP 80）
-# 在镜像内执行 Maven / npm 构建；若改为本机打 JAR + dist 上传，请用 deploy/test/prebuilt/
-# 用法见 docs/服务器测试环境部署说明.md
-#
-# 在 deploy/test 目录执行：
+# VibeCampus 生产环境（与测试环境同机部署）
+# 在 deploy/prod 目录执行：
 #   docker compose --env-file .env up -d --build
 
 services:
@@ -15,7 +12,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      # 仅在数据目录为空时执行；见 docs/数据库说明文档.md
       - ../../schema.mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
@@ -30,7 +26,7 @@ services:
       context: ../..
       dockerfile: deploy/test/backend/Dockerfile
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-test}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-vibecampus}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-vibecampus}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}

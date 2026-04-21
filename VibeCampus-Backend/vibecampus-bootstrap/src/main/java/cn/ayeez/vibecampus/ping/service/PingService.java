@@ -9,6 +9,7 @@ import java.time.Instant;
 @Service
 public class PingService {
 
+    private static final String DEPLOY_MARKER = "cicd-check-20260421";
     private final String applicationName;
 
     public PingService(@Value("${spring.application.name:VibeCampus-Backend}") String applicationName) {
@@ -16,7 +17,7 @@ public class PingService {
     }
 
     public PingResponse ping() {
-        return new PingResponse(applicationName, "OK", Instant.now());
+        return new PingResponse(applicationName, "OK-" + DEPLOY_MARKER, Instant.now());
     }
 }
 
