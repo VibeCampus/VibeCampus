@@ -53,8 +53,6 @@ jobs:
         github.event_name != 'pull_request' ||
         github.event.pull_request.head.repo.fork == false
       )
-    env:
-      IMAGE_TAG: test
     steps:
       - uses: actions/checkout@v4
 
@@ -72,44 +70,23 @@ jobs:
           fi
 
           services=""
-          images="mysql:8.0"
           if [ "$backend_changed" = "true" ]; then
             services="$services backend"
-            images="$images vibecampus-backend:$IMAGE_TAG"
           fi
           if [ "$frontend_changed" = "true" ]; then
             services="$services web"
-            images="$images vibecampus-web:$IMAGE_TAG"
           fi
 
           echo "services=${services# }" >> "$GITHUB_OUTPUT"
-          echo "images=$images" >> "$GITHUB_OUTPUT"
 
-      - name: Build backend image (test)
-        if: contains(steps.services.outputs.services, 'backend')
-        run: docker build -f deploy/test/backend/Dockerfile -t vibecampus-backend:${{ env.IMAGE_TAG }} .
-
-      - name: Build frontend image (test)
-        if: contains(steps.services.outputs.services, 'web')
-        run: docker build -f deploy/test/frontend/Dockerfile -t vibecampus-web:${{ env.IMAGE_TAG }} --build-arg VITE_API_BASE_URL=/api .
-
-      - name: Pull mysql image
-        run: docker pull mysql:8.0
-
-      - name: Save deployment images tar
-        run: |
-          mkdir -p _bundle
-          docker save ${{ steps.services.outputs.images }} -o _bundle/images-test.tar
-          chmod 644 _bundle/images-test.tar
-
-      - name: Upload bundle to test server
+      - name: Upload source to test server path
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "_bundle/images-test.tar,deploy/test/docker-compose.images.yml,schema.mysql.sql"
+          source: "VibeCampus-Backend,VibeCampus-Frontend,deploy,schema.mysql.sql"
           target: "${{ secrets.SERVER_BASE_DIR }}/test/source"
           rm: true
           overwrite: true
@@ -119,7 +96,6 @@ jobs:
         env:
           SERVER_BASE_DIR: ${{ secrets.SERVER_BASE_DIR }}
           SERVICES: ${{ steps.services.outputs.services }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           MYSQL_ROOT_PASSWORD: ${{ secrets.TEST_MYSQL_ROOT_PASSWORD }}
           MYSQL_DATABASE: ${{ secrets.TEST_MYSQL_DATABASE }}
           MYSQL_USER: ${{ secrets.TEST_MYSQL_USER }}
@@ -131,7 +107,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: SERVER_BASE_DIR,SERVICES,IMAGE_TAG,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT
+          envs: SERVER_BASE_DIR,SERVICES,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT
           script: |
             set -e
             cd "$SERVER_BASE_DIR/test/source"
@@ -143,16 +119,13 @@ jobs:
               "MYSQL_PASSWORD=$MYSQL_PASSWORD" \
               "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE" \
               "WEB_PORT=${WEB_PORT:-8081}" \
-              "IMAGE_TAG=$IMAGE_TAG" \
               > deploy/test/.env
-
-            docker load -i _bundle/images-test.tar
 
             if [ -z "$SERVICES" ]; then
               SERVICES="backend web"
             fi
 
-            docker compose --project-name vibecampus-test -f deploy/test/docker-compose.images.yml --env-file deploy/test/.env up -d $SERVICES
+            docker compose --project-name vibecampus-test -f deploy/test/docker-compose.yml --env-file deploy/test/.env up -d --build $SERVICES
 
   deploy_prod:
     runs-on: ubuntu-latest
@@ -171,8 +144,6 @@ jobs:
         github.event_name != 'pull_request' ||
         github.event.pull_request.head.repo.fork == false
       )
-    env:
-      IMAGE_TAG: prod
     steps:
       - uses: actions/checkout@v4
 
@@ -190,44 +161,23 @@ jobs:
           fi
 
           services=""
-          images="mysql:8.0"
           if [ "$backend_changed" = "true" ]; then
             services="$services backend"
-            images="$images vibecampus-backend:$IMAGE_TAG"
           fi
           if [ "$frontend_changed" = "true" ]; then
             services="$services web"
-            images="$images vibecampus-web:$IMAGE_TAG"
           fi
 
           echo "services=${services# }" >> "$GITHUB_OUTPUT"
-          echo "images=$images" >> "$GITHUB_OUTPUT"
 
-      - name: Build backend image (prod)
-        if: contains(steps.services.outputs.services, 'backend')
-        run: docker build -f deploy/test/backend/Dockerfile -t vibecampus-backend:${{ env.IMAGE_TAG }} .
-
-      - name: Build frontend image (prod)
-        if: contains(steps.services.outputs.services, 'web')
-        run: docker build -f deploy/test/frontend/Dockerfile -t vibecampus-web:${{ env.IMAGE_TAG }} --build-arg VITE_API_BASE_URL=/api .
-
-      - name: Pull mysql image
-        run: docker pull mysql:8.0
-
-      - name: Save deployment images tar
-        run: |
-          mkdir -p _bundle
-          docker save ${{ steps.services.outputs.images }} -o _bundle/images-prod.tar
-          chmod 644 _bundle/images-prod.tar
-
-      - name: Upload bundle to prod server
+      - name: Upload source to prod server path
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "_bundle/images-prod.tar,deploy/prod/docker-compose.images.yml,schema.mysql.sql"
+          source: "VibeCampus-Backend,VibeCampus-Frontend,deploy,schema.mysql.sql"
           target: "${{ secrets.SERVER_BASE_DIR }}/prod/source"
           rm: true
           overwrite: true
@@ -237,7 +187,6 @@ jobs:
         env:
           SERVER_BASE_DIR: ${{ secrets.SERVER_BASE_DIR }}
           SERVICES: ${{ steps.services.outputs.services }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           MYSQL_ROOT_PASSWORD: ${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
           MYSQL_DATABASE: ${{ secrets.PROD_MYSQL_DATABASE }}
           MYSQL_USER: ${{ secrets.PROD_MYSQL_USER }}
@@ -249,7 +198,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: SERVER_BASE_DIR,SERVICES,IMAGE_TAG,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT
+          envs: SERVER_BASE_DIR,SERVICES,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT
           script: |
             set -e
             cd "$SERVER_BASE_DIR/prod/source"
@@ -261,13 +210,10 @@ jobs:
               "MYSQL_PASSWORD=$MYSQL_PASSWORD" \
               "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE" \
               "WEB_PORT=${WEB_PORT:-80}" \
-              "IMAGE_TAG=$IMAGE_TAG" \
               > deploy/prod/.env
-
-            docker load -i _bundle/images-prod.tar
 
             if [ -z "$SERVICES" ]; then
               SERVICES="backend web"
             fi
 
-            docker compose --project-name vibecampus-prod -f deploy/prod/docker-compose.images.yml --env-file deploy/prod/.env up -d $SERVICES
+            docker compose --project-name vibecampus-prod -f deploy/prod/docker-compose.yml --env-file deploy/prod/.env up -d --build $SERVICES
