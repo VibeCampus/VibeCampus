@@ -13,6 +13,6 @@ app:
   jwt:
     # 开源仓库默认不放本地密钥；local 请在 application-local.yml 配置。
     # test/prod 可由环境变量覆盖。
-    secret: ${APP_JWT_SECRET:please-set-jwt-secret-in-application-local-yml}
+    secret: ${APP_JWT_SECRET:please-set-a-jwt-secret-with-at-least-32-bytes}
     expiration-minutes: ${APP_JWT_EXPIRATION_MINUTES:120}
     issuer: ${APP_JWT_ISSUER:vibecampus}
