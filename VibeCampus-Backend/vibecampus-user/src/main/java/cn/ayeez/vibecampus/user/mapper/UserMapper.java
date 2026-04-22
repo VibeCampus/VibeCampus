@@ -49,4 +49,16 @@ public interface UserMapper {
     @Options(useGeneratedKeys = true, keyColumn = "id", keyProperty = "id")
     int insertUser(UserProfile user);
 
+    /**
+     * 根据用户ID查询完整的用户档案（包括所有字段）
+     * 用于获取用户的完整信息，后续根据权限过滤敏感字段
+     * @param userId 用户ID
+     * @return 用户完整档案，不存在则返回null
+     */
+    @Select("""
+            select id, username, phone, email, nickname, gender, status, password_hash AS passwordHash
+            from users
+            where id = #{userId}
+            """)
+    UserProfile selectFullProfileById(@Param("userId") Long userId);
 }
