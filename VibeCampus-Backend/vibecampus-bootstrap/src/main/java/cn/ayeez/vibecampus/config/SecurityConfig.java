@@ -2,6 +2,7 @@ package cn.ayeez.vibecampus.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -36,10 +37,17 @@ public class SecurityConfig {
                         // 公开接口：无需认证
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/ping").permitAll()
+                        .requestMatchers("/api/v1/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
                         // 需要认证的接口
                         .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/users/**").authenticated()
                         .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")))
                 // 无状态会话（JWT 不需要 session）
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS));
