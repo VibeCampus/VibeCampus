@@ -101,6 +101,30 @@ public class JwtTokenServiceImpl implements JwtTokenService {
         }
     }
 
+    @Override
+    public Long extractUserIdFromToken(String authorizationHeader) {
+        String token = extractBearerToken(authorizationHeader);
+        try {
+            Claims claims = parseClaims(token);
+            // 检查是否被吊销
+            if (revokedJti.containsKey(claims.getId())) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token已被吊销");
+            }
+            // 从 subject 中解析用户ID（签发时存入的是String.valueOf(userId)）
+            String subject = claims.getSubject();
+            if (!StringUtils.hasText(subject)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token中缺少用户信息");
+            }
+            return Long.parseLong(subject);
+        }
+        catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token格式异常");
+        }
+        catch (JwtException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token无效或已过期");
+        }
+    }
+
     private Claims parseClaims(String token) {
         Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
         if (!StringUtils.hasText(claims.getId()) || claims.getExpiration() == null) {

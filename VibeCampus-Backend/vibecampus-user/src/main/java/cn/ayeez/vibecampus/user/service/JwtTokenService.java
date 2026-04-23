@@ -21,4 +21,13 @@ public interface JwtTokenService {
      * 校验 token 是否已被吊销。
      */
     boolean isAccessTokenRevoked(String authorizationHeader);
+
+    /**
+     * 从 Authorization header 中提取并解析用户ID。
+     *
+     * @param authorizationHeader Bearer token
+     * @return 用户ID
+     * @throws org.springframework.web.server.ResponseStatusException 如果token无效或已过期
+     */
+    Long extractUserIdFromToken(String authorizationHeader);
 }
