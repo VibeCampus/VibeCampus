@@ -28,7 +28,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api")
 public class UserController {
 
     private final UserService userService;
@@ -45,7 +45,7 @@ public class UserController {
      * @param request HTTP请求对象，用于从属性中获取当前登录用户ID
      * @return 当前用户的完整详细信息
      */
-    @GetMapping("/me")
+    @GetMapping("/users/me")
     public ResponseEntity<?> getCurrentUserDetail(HttpServletRequest request) {
         // 从 JWT 认证过滤器注入的属性中获取当前用户ID
         Long currentUserId = (Long) request.getAttribute("currentUserId");
@@ -95,7 +95,7 @@ public class UserController {
      * @param request HTTP请求对象，用于从属性中获取当前登录用户ID
      * @return 用户详细信息，包含isCurrentUser标识
      */
-    @GetMapping("/{userId}")
+    @GetMapping("/users/{userId}")
     public ResponseEntity<?> getUserDetail(
             @PathVariable Long userId,
             HttpServletRequest request) {

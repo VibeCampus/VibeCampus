@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**").permitAll()
                         // 需要认证的接口
                         .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/api/users/**").authenticated()
                         .requestMatchers("/users/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
