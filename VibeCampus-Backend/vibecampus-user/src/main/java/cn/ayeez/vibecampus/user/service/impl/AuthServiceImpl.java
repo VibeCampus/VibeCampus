@@ -1,9 +1,9 @@
 package cn.ayeez.vibecampus.user.service.impl;
 
-import cn.ayeez.vibecampus.user.dto.LoginRequest;
-import cn.ayeez.vibecampus.user.dto.LoginResponse;
-import cn.ayeez.vibecampus.user.dto.RegisterRequest;
-import cn.ayeez.vibecampus.user.dto.UserInfo;
+import cn.ayeez.vibecampus.common.dto.LoginRequest;
+import cn.ayeez.vibecampus.common.dto.LoginResponse;
+import cn.ayeez.vibecampus.common.dto.RegisterRequest;
+import cn.ayeez.vibecampus.common.dto.UserInfo;
 import cn.ayeez.vibecampus.user.mapper.UserMapper;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 import cn.ayeez.vibecampus.user.service.AuthService;

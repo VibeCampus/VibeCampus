@@ -1,8 +1,8 @@
 package cn.ayeez.vibecampus.user.service;
 
-import cn.ayeez.vibecampus.user.dto.LoginRequest;
-import cn.ayeez.vibecampus.user.dto.LoginResponse;
-import cn.ayeez.vibecampus.user.dto.RegisterRequest;
+import cn.ayeez.vibecampus.common.dto.LoginRequest;
+import cn.ayeez.vibecampus.common.dto.LoginResponse;
+import cn.ayeez.vibecampus.common.dto.RegisterRequest;
 
 /**
  * 认证领域服务：注册、登录、验证码等（本会话仅实现登录入口）。

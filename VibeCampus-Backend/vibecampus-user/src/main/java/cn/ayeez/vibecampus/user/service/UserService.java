@@ -1,6 +1,6 @@
 package cn.ayeez.vibecampus.user.service;
 
-import cn.ayeez.vibecampus.user.dto.UserDetailResponse;
+import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 
 /**

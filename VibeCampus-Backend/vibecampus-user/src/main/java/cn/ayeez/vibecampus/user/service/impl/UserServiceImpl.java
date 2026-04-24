@@ -1,6 +1,6 @@
 package cn.ayeez.vibecampus.user.service.impl;
 
-import cn.ayeez.vibecampus.user.dto.UserDetailResponse;
+import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
 import cn.ayeez.vibecampus.user.mapper.UserMapper;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 import cn.ayeez.vibecampus.user.service.UserService;

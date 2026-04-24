@@ -1,8 +1,8 @@
 package cn.ayeez.vibecampus.user.controller;
 
-import cn.ayeez.vibecampus.user.dto.LoginRequest;
-import cn.ayeez.vibecampus.user.dto.LoginResponse;
-import cn.ayeez.vibecampus.user.dto.RegisterRequest;
+import cn.ayeez.vibecampus.common.dto.LoginRequest;
+import cn.ayeez.vibecampus.common.dto.LoginResponse;
+import cn.ayeez.vibecampus.common.dto.RegisterRequest;
 import cn.ayeez.vibecampus.user.service.AuthService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;

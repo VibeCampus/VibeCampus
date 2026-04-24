@@ -1,7 +1,7 @@
 package cn.ayeez.vibecampus.user.controller;
 
 
-import cn.ayeez.vibecampus.user.dto.UserDetailResponse;
+import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
 import cn.ayeez.vibecampus.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
