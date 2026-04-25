@@ -37,7 +37,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 公开接口：无需认证
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/ping").permitAll()
                         .requestMatchers("/api/v1/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/posts/**").permitAll()

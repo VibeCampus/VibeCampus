@@ -305,6 +305,8 @@ public class PostServiceImpl implements PostService {
             MultipartFile image = images[i];
             StoredFileType fileType = detectFileType(image);
             SavedFile savedFile = saveFile(image, fileType, "images");
+            // 文件落盘后立即纳入补偿列表，避免后续 DB 异常导致孤儿文件。
+            createdFilePaths.add(savedFile.path());
             PostMediaEntity postMediaEntity = new PostMediaEntity();
             postMediaEntity.setPostId(postId);
             postMediaEntity.setMediaType(MEDIA_TYPE_IMAGE);
@@ -312,7 +314,6 @@ public class PostServiceImpl implements PostService {
             postMediaEntity.setSortOrder(i);
             postMapper.insertPostMedia(postMediaEntity);
             urls.add(savedFile.url());
-            createdFilePaths.add(savedFile.path());
         }
         return urls;
     }
@@ -320,13 +321,14 @@ public class PostServiceImpl implements PostService {
     private void saveVideo(Long postId, MultipartFile video, List<Path> createdFilePaths) {
         StoredFileType fileType = detectFileType(video);
         SavedFile savedFile = saveFile(video, fileType, "videos");
+        // 文件落盘后立即纳入补偿列表，避免后续 DB 异常导致孤儿文件。
+        createdFilePaths.add(savedFile.path());
         PostMediaEntity postMediaEntity = new PostMediaEntity();
         postMediaEntity.setPostId(postId);
         postMediaEntity.setMediaType(MEDIA_TYPE_VIDEO);
         postMediaEntity.setUrl(savedFile.url());
         postMediaEntity.setSortOrder(0);
         postMapper.insertPostMedia(postMediaEntity);
-        createdFilePaths.add(savedFile.path());
     }
 
     /**

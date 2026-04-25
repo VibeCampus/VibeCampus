@@ -5,10 +5,12 @@ import cn.ayeez.vibecampus.post.dto.PostResponse;
 import cn.ayeez.vibecampus.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,12 +47,12 @@ public class PostController {
     /**
      * 用户发帖接口：与前端 CreatePostView + API 文档 9.3 对齐。
      */
-    @PostMapping
-    public PostResponse createPost(@RequestParam("category") String category,
-                                   @RequestParam("content") String content,
-                                   @RequestParam("anonymous") String anonymous,
-                                   @RequestParam(value = "images", required = false) MultipartFile[] images,
-                                   @RequestParam(value = "video", required = false) MultipartFile video) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PostResponse createPost(@RequestPart("category") String category,
+                                   @RequestPart("content") String content,
+                                   @RequestPart("anonymous") String anonymous,
+                                   @RequestPart(value = "images", required = false) MultipartFile[] images,
+                                   @RequestPart(value = "video", required = false) MultipartFile video) {
         log.info("收到发帖请求，category={}, imageCount={}, hasVideo={}",
                 category, images == null ? 0 : images.length, video != null && !video.isEmpty());
         return postService.createPost(category, content, anonymous, images, video);
