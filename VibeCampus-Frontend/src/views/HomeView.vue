@@ -1,18 +1,42 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PostCard from '@/components/PostCard.vue'
 import HotRankSidebar from '@/components/HotRankSidebar.vue'
 import { useSocialStore } from '@/stores/social'
+import postApi from '@/api/post'
 
 const SOCIAL_KEYS = ['social_find', 'social_buddy', 'social_love']
 
 const route = useRoute()
 const router = useRouter()
 const socialStore = useSocialStore()
-const loading = false
+const loading = ref(true)
+const loadError = ref('')
 
 const activeCategory = computed(() => route.query.category || '')
+
+async function loadFeed() {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const params = { page: 1, pageSize: 100 }
+    if (activeCategory.value) {
+      params.category = activeCategory.value
+    }
+    const { list } = await postApi.getList(params)
+    if (Array.isArray(list)) {
+      socialStore.setFeedFromServer(list)
+    }
+  } catch (e) {
+    loadError.value = e?.message || '无法连接服务器，已使用本地展示数据'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadFeed)
+watch(() => route.query.category, loadFeed)
 
 const filtered = computed(() => {
   const q = activeCategory.value
@@ -59,6 +83,12 @@ function isSocialSubActive(key) {
     <div class="max-w-[1100px] mx-auto px-4 pt-4 flex gap-5 items-start">
       <!-- Feed -->
       <main class="flex-1 min-w-0">
+        <p
+          v-if="loadError"
+          class="mb-3 text-[13px] text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2"
+        >
+          {{ loadError }}
+        </p>
         <!-- 社交墙：子类型筛选 -->
         <div v-if="showSocialSubNav" class="mb-3 flex flex-wrap items-center gap-2">
           <span class="text-[12px] text-[#8590A6] shrink-0">类型</span>

@@ -1,21 +1,18 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import userApi from '@/api/user'
 
-// ⚠️ 前端测试用：默认模拟已登录用户，对接后端时删除 MOCK_USER 改为空值
-const MOCK_USER = {
-  id: 1,
-  username: '测试同学',
-  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80',
-  phone: '138****1234',
-  email: 'demo@campus.com',
-  gender: '男',
-  bio: '热爱分享的大三学生，常在图书馆和操场出没。',
+function readStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('userInfo') || 'null')
+  } catch {
+    return null
+  }
 }
-const MOCK_TOKEN = 'mock-dev-token'
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref(localStorage.getItem('token') || MOCK_TOKEN)
-  const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || 'null') || MOCK_USER)
+  const token = ref(localStorage.getItem('token') || '')
+  const userInfo = ref(readStoredUser())
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -38,5 +35,14 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
   }
 
-  return { token, userInfo, isLoggedIn, login, logout, updateUserInfo }
+  async function refreshFromServer() {
+    if (!token.value) return
+    const user = await userApi.getCurrentUserDetail()
+    if (user) {
+      userInfo.value = user
+      localStorage.setItem('userInfo', JSON.stringify(user))
+    }
+  }
+
+  return { token, userInfo, isLoggedIn, login, logout, updateUserInfo, refreshFromServer }
 })

@@ -1,9 +1,10 @@
 import axios from 'axios'
+import { unwrapBody } from './unwrap'
 
 /**
  * axios 实例
  * baseURL 从环境变量读取，本地开发可在 .env.development 中设置：
- *   VITE_API_BASE_URL=http://localhost:8080/api
+ *   VITE_API_BASE_URL=/api  （建议配合 vite 代理，避免跨域）
  */
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -23,16 +24,17 @@ http.interceptors.request.use(
   error => Promise.reject(error),
 )
 
-// ── 响应拦截器：统一处理错误 ────────────────────────────────
+// ── 响应拦截器：统一解包 { code, data } 与错误处理 ───────────
 http.interceptors.response.use(
-  response => response.data,
+  response => unwrapBody(response.data),
   error => {
     const status = error.response?.status
-    const msg = error.response?.data?.message || '请求失败，请稍后重试'
+    const data = error.response?.data
+    const msg = data?.message || data?.msg || error.message || '请求失败，请稍后重试'
 
     if (status === 401) {
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      localStorage.removeItem('userInfo')
       window.location.href = '/userlogin'
       return Promise.reject(error)
     }

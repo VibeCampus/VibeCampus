@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import UserAvatar from '@/components/UserAvatar.vue'
+import authApi from '@/api/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,9 +55,14 @@ function submitSearch() {
   }
 }
 
-function handleLogout() {
-  userStore.logout()
+async function handleLogout() {
   showUserMenu.value = false
+  try {
+    await authApi.logout()
+  } catch {
+    // 无论接口是否成功，清理本地态
+  }
+  userStore.logout()
   router.push('/')
 }
 </script>

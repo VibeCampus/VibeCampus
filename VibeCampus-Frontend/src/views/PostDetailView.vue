@@ -1,14 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
 import UserAvatar from '@/components/UserAvatar.vue'
+import postApi from '@/api/post'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const socialStore = useSocialStore()
+const loadError = ref('')
 
 const liked = ref(false)
 const saved = ref(false)
@@ -29,6 +31,18 @@ const categoryLabel = {
 const postId = computed(() => Number(route.params.id))
 const post = computed(() => socialStore.getPostById(postId.value))
 const comments = computed(() => socialStore.getCommentsByPostId(postId.value))
+
+onMounted(async () => {
+  loadError.value = ''
+  try {
+    const raw = await postApi.getDetail(postId.value)
+    if (raw) {
+      socialStore.upsertPostFromServer(raw)
+    }
+  } catch (e) {
+    loadError.value = e?.message || '加载失败'
+  }
+})
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const currentUser = computed(() => socialStore.currentUser)
 const showFollowButton = computed(() =>
@@ -69,6 +83,9 @@ function submitReply() {
     <div class="max-w-[860px] mx-auto px-4 py-5 flex gap-5 items-start">
       <main class="flex-1 min-w-0">
         <div v-if="!post" class="bg-white border border-[#EBEBEB] px-6 py-10 text-center">
+          <p v-if="loadError" class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mb-3 text-left">
+            {{ loadError }}
+          </p>
           <p class="text-[15px] text-[#1A1A1A] mb-3">帖子不存在或已删除</p>
           <button
             @click="router.push('/')"

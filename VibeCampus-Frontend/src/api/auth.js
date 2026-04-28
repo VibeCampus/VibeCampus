@@ -1,71 +1,89 @@
 import http from './index'
+import { pickLoginData } from './normalize'
+import userApi from './user'
 
-/**
- * 认证模块 API
- *
- * 后端约定返回结构：
- * { code: 0, message: 'ok', data: { ... } }
- */
 const authApi = {
   /**
-   * 登录
-   * POST /auth/login
-   * @param {{ account: string, password: string, captcha: string }} data
-   * @returns {{ token: string, user: UserInfo }}
+   * POST /api/auth/login
+   * Body: { account, password, captcha, captchaId }
+   * Response: { token, user: { id, username, phone } }
    */
   login(data) {
-    return http.post('/auth/login', data)
+    const body = {
+      account: data.account ?? data.username,
+      password: data.password,
+      captcha: data.captcha,
+      captchaId: data.captchaId,
+    }
+    return http.post('/auth/login', body).then(async res => {
+      const picked = pickLoginData(res)
+      if (!picked.token) {
+        return Promise.reject(new Error('登录响应缺少 token'))
+      }
+      if (picked.user) {
+        return picked
+      }
+      localStorage.setItem('token', picked.token)
+      try {
+        const user = await userApi.getCurrentUserDetail()
+        if (user) {
+          return { ...picked, user }
+        }
+        return Promise.reject(new Error('无法获取当前用户信息'))
+      } catch (e) {
+        localStorage.removeItem('token')
+        throw e
+      }
+    })
   },
 
   /**
-   * 注册
-   * POST /auth/register
-   * @param {{ username: string, phone: string, password: string, captcha: string }} data
+   * POST /api/auth/register
+   * Body: { username, password, captcha, gender?, phone?, email?, nickname? }
+   * Response: { token, user: { id, username, phone } }
    */
   register(data) {
-    return http.post('/auth/register', data)
+    return http
+      .post('/auth/register', {
+        username: data.username,
+        password: data.password,
+        captcha: data.captcha,
+        captchaId: data.captchaId,
+        phone: data.phone,
+        gender: data.gender,
+        email: data.email,
+        nickname: data.nickname,
+      })
+      .then(res => {
+        if (res && (res.token || res.accessToken || res.access_token)) {
+          return pickLoginData(res)
+        }
+        return res
+      })
   },
 
   /**
-   * 获取图形验证码（以 base64 图片返回）
-   * GET /auth/captcha
-   * @returns {{ captchaId: string, image: string }}
+   * GET /api/auth/captcha
+   * Response: { captchaId, image }  (image 为 base64)
    */
   getCaptcha() {
     return http.get('/auth/captcha')
   },
 
-  /**
-   * 发送短信验证码
-   * POST /auth/sms
-   * @param {{ phone: string }} data
-   */
   sendSms(data) {
     return http.post('/auth/sms', data)
   },
 
-  /**
-   * 验证短信验证码（找回密码第二步）
-   * POST /auth/sms/verify
-   * @param {{ phone: string, code: string }} data
-   * @returns {{ resetToken: string }}  用于后续重置密码的临时 token
-   */
   verifySmsCode(data) {
     return http.post('/auth/sms/verify', data)
   },
 
-  /**
-   * 重置密码（找回密码第三步）
-   * POST /auth/reset-password
-   * @param {{ resetToken: string, newPassword: string }} data
-   */
   resetPassword(data) {
     return http.post('/auth/reset-password', data)
   },
 
   /**
-   * 退出登录（服务端使 token 失效）
-   * POST /auth/logout
+   * POST /api/auth/logout
    */
   logout() {
     return http.post('/auth/logout')

@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
+import { normalizePost, normalizeUser, parseListPayload } from '@/api/normalize'
 
 const mockUsers = [
   {
@@ -282,13 +283,24 @@ export const useSocialStore = defineStore('social', () => {
   const favoritesByUserId = ref(loadState('social-favorites', mockFavorites))
   const followingByUserId = ref(loadState('social-following', mockFollowing))
 
-  const currentUserId = computed(() => normalizeId(userStore.userInfo?.id || 1))
+  const currentUserId = computed(() => {
+    const id = userStore.userInfo?.id
+    return id != null ? normalizeId(id) : 0
+  })
 
   function findUserById(userId) {
     return users.value.find(user => user.id === normalizeId(userId)) || null
   }
 
-  const currentUser = computed(() => findUserById(currentUserId.value))
+  const currentUser = computed(() => {
+    const id = currentUserId.value
+    if (!id) {
+      return null
+    }
+    return (
+      findUserById(id) || normalizeUser(userStore.userInfo) || null
+    )
+  })
 
   function getFavoriteIds(userId) {
     return favoritesByUserId.value[normalizeId(userId)] || []
@@ -301,9 +313,13 @@ export const useSocialStore = defineStore('social', () => {
 
   function enrichPost(post) {
     const favoriteIds = getFavoriteIds(currentUserId.value)
+    const author =
+      post.author ||
+      (post.authorId ? findUserById(post.authorId) : null) ||
+      null
     return {
       ...post,
-      author: post.authorId ? findUserById(post.authorId) : null,
+      author,
       favorited: favoriteIds.includes(post.id),
     }
   }
@@ -373,6 +389,48 @@ export const useSocialStore = defineStore('social', () => {
       followerCount: getFollowers(userId).length,
       favoriteCount: getFavoritePosts(userId).length,
     }
+  }
+
+  function upsertUser(user) {
+    const u = normalizeUser(user)
+    if (!u?.id) return
+    const id = normalizeId(u.id)
+    const i = users.value.findIndex(x => normalizeId(x.id) === id)
+    if (i >= 0) {
+      Object.assign(users.value[i], u)
+    } else {
+      users.value.push(u)
+    }
+  }
+
+  function syncUserFromProfile(user) {
+    upsertUser(user)
+  }
+
+  function setFeedFromServer(rawList) {
+    const arr = parseListPayload(rawList)
+    const list = arr.map(p => normalizePost(p)).filter(Boolean)
+    for (const p of list) {
+      if (p.author) {
+        upsertUser(p.author)
+      }
+    }
+    posts.value = list
+  }
+
+  function upsertPostFromServer(raw) {
+    const p = normalizePost(raw)
+    if (!p) return null
+    if (p.author) {
+      upsertUser(p.author)
+    }
+    const i = posts.value.findIndex(x => x.id === p.id)
+    if (i >= 0) {
+      posts.value[i] = p
+    } else {
+      posts.value.unshift(p)
+    }
+    return p
   }
 
   function updateCurrentUserProfile(patch) {
@@ -473,5 +531,8 @@ export const useSocialStore = defineStore('social', () => {
     updateCurrentUserProfile,
     addComment,
     addReply,
+    syncUserFromProfile,
+    setFeedFromServer,
+    upsertPostFromServer,
   }
 })
