@@ -117,6 +117,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          command_timeout: 30m
           envs: SERVER_BASE_DIR,SERVICES,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT,APP_JWT_SECRET,APP_JWT_EXPIRATION_MINUTES,APP_JWT_ISSUER
           script: |
             set -e
@@ -212,6 +213,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          command_timeout: 30m
           envs: SERVER_BASE_DIR,SERVICES,MYSQL_ROOT_PASSWORD,MYSQL_DATABASE,MYSQL_USER,MYSQL_PASSWORD,SPRING_PROFILES_ACTIVE,WEB_PORT,APP_JWT_SECRET,APP_JWT_EXPIRATION_MINUTES,APP_JWT_ISSUER
           script: |
             set -e
