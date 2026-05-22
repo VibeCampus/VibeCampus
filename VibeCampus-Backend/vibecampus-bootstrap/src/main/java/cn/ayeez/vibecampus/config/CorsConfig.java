@@ -17,7 +17,8 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        // 允许前端地址和后端的 127.0.0.1 访问
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:8080"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
@@ -25,7 +26,8 @@ public class CorsConfig {
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
+        // 对所有路径启用 CORS（包括 /api/** 和 /users/**）
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

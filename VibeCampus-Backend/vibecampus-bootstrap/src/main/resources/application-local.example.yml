@@ -1,18 +1,27 @@
-# 复制本文件为 application-local.yml 后再填写真实连接信息。
-# application-local.yml 已被 .gitignore 忽略，勿将密码提交到仓库。
-#
-# cp application-local.example.yml application-local.yml
+# 本地开发配置样例（local example）
+# 说明：复制本文件为 application-local.yml 后，再填写本机真实参数。
+# application-local.yml 已被 .gitignore 忽略，不会提交到仓库。
+# 参考命令：cp application-local.example.yml application-local.yml
 
 spring:
   datasource:
+    # 数据库连接（本地按实际环境修改）
     url: jdbc:mysql://localhost:3306/vibecampus?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: YOUR_PASSWORD_HERE
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # 本地启用 Redis 时取消注释并修改
+  # 如需在本地启用 Redis，可取消注释并按实际环境修改
   # data:
   #   redis:
   #     host: localhost
   #     port: 6379
   #     password:
+
+app:
+  jwt:
+    # JWT 密钥至少 32 字节，建议使用随机字符串
+    secret: CHANGE_ME_TO_A_SECURE_JWT_SECRET_WITH_32_BYTES_MIN
+    # 可按需调整；不改则保持默认
+    expiration-minutes: 120
+    issuer: vibecampus-local

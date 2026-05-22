@@ -19,4 +19,12 @@ public class UserProfile {
      * 数据库中存储的密码摘要（如 BCrypt），永不明文返回给前端。
      */
     private String passwordHash;
+    /** 用户昵称，用于前端展示 */
+    private String nickname;
+    /** 用户邮箱，可用于登录或找回密码 */
+    private String email;
+    /** 性别：0-保密/未知，1-男，2-女 */
+    private Integer gender;
+    /** 用户状态：0-禁用，1-启用 */
+    private Integer status;
 }

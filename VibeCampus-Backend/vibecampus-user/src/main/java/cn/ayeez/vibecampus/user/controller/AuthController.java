@@ -1,10 +1,13 @@
 package cn.ayeez.vibecampus.user.controller;
 
-import cn.ayeez.vibecampus.user.dto.LoginRequest;
-import cn.ayeez.vibecampus.user.dto.LoginResponse;
+import cn.ayeez.vibecampus.common.dto.LoginRequest;
+import cn.ayeez.vibecampus.common.dto.LoginResponse;
+import cn.ayeez.vibecampus.common.dto.RegisterRequest;
 import cn.ayeez.vibecampus.user.service.AuthService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,5 +39,33 @@ public class AuthController {
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         log.info("收到登录请求，account={}", request.getAccount());
         return authService.login(request);
+    }
+
+    /**
+     * 用户注册接口
+     * <ul>
+     *   <li>URL：{POST /api/auth/register}</li>
+     *   <li>Body：{RegisterRequest}，包含用户名、密码等信息</li>
+     *   <li>密码处理：使用BCrypt算法进行哈希加密，成本因子为10</li>
+     *   <li>成功：返回 {@link LoginResponse}（含 token 与 user），HTTP 200</li>
+     *   <li>失败：由全局处理器返回  { "message": "..." }}</li>
+     * </ul>
+     *
+     * request 注册请求体，经过 @Valid 校验
+     * return 包含新用户ID和用户名的响应
+     */
+    @PostMapping("/register")
+    public LoginResponse register(@Valid @RequestBody RegisterRequest request) {
+        log.info("收到注册请求，username={}", request.getUsername());
+        return authService.register(request);
+    }
+
+    /**
+     * 用户登出：使当前 Bearer Token 失效。
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        authService.logout(request.getHeader("Authorization"));
+        return ResponseEntity.ok().build();
     }
 }
