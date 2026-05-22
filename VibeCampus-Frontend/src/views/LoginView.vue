@@ -1,42 +1,76 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useSocialStore } from '@/stores/social'
+import authApi from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
+const socialStore = useSocialStore()
 
 const form = ref({ account: '', password: '', captcha: '' })
-const captchaText = ref('AXBZ')
+const captchaId = ref('')
+const captchaImage = ref('')
+const captchaFallback = ref('')
 const showPwd = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-function refreshCaptcha() {
+function generateLocalCaptcha() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  captchaText.value = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
+
+async function refreshCaptcha() {
+  try {
+    const res = await authApi.getCaptcha()
+    if (res?.captchaId && res?.image) {
+      captchaId.value = res.captchaId
+      captchaImage.value = res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`
+      captchaFallback.value = ''
+      return
+    }
+  } catch {
+    // 后端验证码接口不可用时，使用本地前端验证码
+  }
+  captchaId.value = ''
+  captchaImage.value = ''
+  captchaFallback.value = generateLocalCaptcha()
+}
+
+onMounted(refreshCaptcha)
 
 async function submit() {
   if (!form.value.account || !form.value.password || !form.value.captcha) {
     error.value = '请填写所有字段'
     return
   }
-  if (form.value.captcha.toUpperCase() !== captchaText.value) {
+  if (captchaFallback.value && form.value.captcha.toUpperCase() !== captchaFallback.value) {
     error.value = '验证码错误'
     refreshCaptcha()
     return
   }
   loading.value = true
   error.value = ''
-  await new Promise(r => setTimeout(r, 700))
-  loading.value = false
-  // 模拟后端返回的登录数据，联调时替换为真实 API 调用
-  userStore.login({
-    token: 'mock-token-' + Date.now(),
-    user: { id: 1, username: form.value.account || '同学', avatar: '' },
-  })
-  router.push('/')
+  try {
+    const data = await authApi.login({
+      account: form.value.account,
+      password: form.value.password,
+      captcha: form.value.captcha,
+      captchaId: captchaId.value,
+    })
+    userStore.login(data)
+    if (data.user) {
+      socialStore.syncUserFromProfile(data.user)
+    }
+    router.push('/')
+  } catch (e) {
+    error.value = e?.message || '登录失败'
+    refreshCaptcha()
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -90,9 +124,21 @@ async function submit() {
             <div class="flex gap-2">
               <input v-model="form.captcha" type="text" placeholder="图形验证码" maxlength="4"
                 class="flex-1 h-10 px-3 text-[14px] border border-[#EBEBEB] bg-white outline-none focus:border-[#1772F6] transition-colors tracking-widest" />
-              <div @click="refreshCaptcha"
-                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none font-mono font-bold text-[16px] text-[#1772F6] tracking-widest transition-colors shrink-0">
-                {{ captchaText }}
+              <!-- 后端验证码图片 -->
+              <img
+                v-if="captchaImage"
+                :src="captchaImage"
+                @click="refreshCaptcha"
+                class="h-10 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                alt="验证码"
+              />
+              <!-- 前端本地验证码（后端不可用时降级） -->
+              <div
+                v-else
+                @click="refreshCaptcha"
+                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none font-mono font-bold text-[16px] text-[#1772F6] tracking-widest transition-colors shrink-0"
+              >
+                {{ captchaFallback }}
               </div>
             </div>
           </div>

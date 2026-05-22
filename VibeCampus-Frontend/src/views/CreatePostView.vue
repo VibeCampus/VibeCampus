@@ -1,8 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import { useSocialStore } from '@/stores/social'
+import postApi from '@/api/post'
 
 const router = useRouter()
+const userStore = useUserStore()
+const socialStore = useSocialStore()
+const submitError = ref('')
 
 const socialCategories = [
   { key: 'social_find', label: '捞人' },
@@ -48,10 +54,44 @@ function removeImage(i) {
 
 async function submit() {
   if (!selectedCategory.value || !content.value.trim()) return
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/userlogin', query: { redirect: '/post/create' } })
+    return
+  }
   submitting.value = true
-  await new Promise(r => setTimeout(r, 800))
-  submitting.value = false
-  router.push('/')
+  submitError.value = ''
+  try {
+    let res
+    const hasFiles = images.value.some(x => x.file)
+    if (hasFiles) {
+      const formData = new FormData()
+      formData.append('category', selectedCategory.value)
+      formData.append('content', content.value.trim())
+      formData.append('anonymous', String(anonymous.value))
+      images.value.forEach(item => {
+        if (item.file) {
+          formData.append('images', item.file)
+        }
+      })
+      res = await postApi.create(formData)
+    } else {
+      res = await postApi.create({
+        category: selectedCategory.value,
+        content: content.value.trim(),
+        anonymous: anonymous.value,
+      })
+    }
+    if (res?.id) {
+      socialStore.upsertPostFromServer(res)
+      router.push(`/c/${res.id}`)
+    } else {
+      router.push('/')
+    }
+  } catch (e) {
+    submitError.value = e?.message || '发布失败'
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -69,6 +109,12 @@ async function submit() {
         </div>
 
         <div class="px-6 py-5 space-y-5">
+          <p
+            v-if="submitError"
+            class="text-[13px] text-red-600 bg-red-50 border border-red-100 px-3 py-2"
+          >
+            {{ submitError }}
+          </p>
           <!-- Category -->
           <div>
             <label class="block text-[13px] font-medium text-[#1A1A1A] mb-2">选择分类 <span class="text-red-500">*</span></label>

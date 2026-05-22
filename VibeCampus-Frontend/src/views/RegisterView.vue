@@ -1,20 +1,44 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useSocialStore } from '@/stores/social'
+import authApi from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
+const socialStore = useSocialStore()
 const form = ref({ username: '', phone: '', gender: '保密', password: '', confirm: '', captcha: '' })
-const captchaText = ref('KM7P')
+const captchaId = ref('')
+const captchaImage = ref('')
+const captchaFallback = ref('')
 const showPwd = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-function refreshCaptcha() {
+function generateLocalCaptcha() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  captchaText.value = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
+
+async function refreshCaptcha() {
+  try {
+    const res = await authApi.getCaptcha()
+    if (res?.captchaId && res?.image) {
+      captchaId.value = res.captchaId
+      captchaImage.value = res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`
+      captchaFallback.value = ''
+      return
+    }
+  } catch {
+    // fallback
+  }
+  captchaId.value = ''
+  captchaImage.value = ''
+  captchaFallback.value = generateLocalCaptcha()
+}
+
+onMounted(refreshCaptcha)
 
 const strength = computed(() => {
   const p = form.value.password
@@ -40,26 +64,40 @@ async function submit() {
     error.value = '两次密码不一致'
     return
   }
-  if (form.value.captcha.toUpperCase() !== captchaText.value) {
+  if (captchaFallback.value && form.value.captcha.toUpperCase() !== captchaFallback.value) {
     error.value = '验证码错误'
     refreshCaptcha()
     return
   }
   loading.value = true
-  await new Promise(r => setTimeout(r, 700))
-  loading.value = false
-  // 注册成功后自动登录
-  userStore.login({
-    token: 'mock-token-' + Date.now(),
-    user: {
-      id: Date.now(),
+  error.value = ''
+  try {
+    const res = await authApi.register({
       username: form.value.username,
+      password: form.value.password,
       phone: form.value.phone,
       gender: form.value.gender,
-      avatar: '',
-    },
-  })
-  router.push('/')
+      captcha: form.value.captcha,
+      captchaId: captchaId.value,
+    })
+    if (res?.token) {
+      userStore.login({ token: res.token, user: res.user || { username: form.value.username } })
+      if (!res.user) {
+        await userStore.refreshFromServer()
+      }
+      if (userStore.userInfo) {
+        socialStore.syncUserFromProfile(userStore.userInfo)
+      }
+      router.push('/')
+    } else {
+      router.push({ path: '/userlogin', query: { from: 'register' } })
+    }
+  } catch (e) {
+    error.value = e?.message || '注册失败'
+    refreshCaptcha()
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -85,7 +123,7 @@ async function submit() {
 
           <div>
             <label class="block text-[13px] text-[#1A1A1A] mb-1.5">用户名</label>
-            <input v-model="form.username" type="text" placeholder="2-20个字符"
+            <input v-model="form.username" type="text" placeholder="3-32个字符"
               class="w-full h-10 px-3 text-[14px] border border-[#EBEBEB] bg-white outline-none focus:border-[#1772F6] transition-colors" />
           </div>
 
@@ -108,7 +146,7 @@ async function submit() {
           <div>
             <label class="block text-[13px] text-[#1A1A1A] mb-1.5">密码</label>
             <div class="relative">
-              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="至少8位"
+              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="至少6位"
                 class="w-full h-10 px-3 pr-10 text-[14px] border border-[#EBEBEB] bg-white outline-none focus:border-[#1772F6] transition-colors" />
               <button @click="showPwd = !showPwd" type="button"
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-[#8590A6] hover:text-[#444] cursor-pointer">
@@ -138,9 +176,19 @@ async function submit() {
             <div class="flex gap-2">
               <input v-model="form.captcha" type="text" placeholder="图形验证码" maxlength="4"
                 class="flex-1 h-10 px-3 text-[14px] border border-[#EBEBEB] bg-white outline-none focus:border-[#1772F6] transition-colors tracking-widest" />
-              <div @click="refreshCaptcha"
-                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none font-mono font-bold text-[16px] text-[#1772F6] tracking-widest transition-colors shrink-0">
-                {{ captchaText }}
+              <img
+                v-if="captchaImage"
+                :src="captchaImage"
+                @click="refreshCaptcha"
+                class="h-10 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                alt="验证码"
+              />
+              <div
+                v-else
+                @click="refreshCaptcha"
+                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none font-mono font-bold text-[16px] text-[#1772F6] tracking-widest transition-colors shrink-0"
+              >
+                {{ captchaFallback }}
               </div>
             </div>
           </div>
