@@ -1,8 +1,7 @@
 /**
  * 将后端 DTO 字段归一化为前端 UI 使用的结构。
  *
- * 后端 UserDetailResponse: { id, username, nickname, email, phone, gender, status, isCurrentUser }
- * 后端 UserInfo (login): { id, username, phone }
+ * 后端 UserDetailResponse/UserInfo: { id, username, avatar, email, phone, gender, bio, major, joinedAt, status, isCurrentUser }
  * 后端 PostAuthorResponse: { id, username, avatar }
  */
 export function normalizeUser(u) {

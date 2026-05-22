@@ -92,7 +92,9 @@ http.interceptors.response.use(
   error => {
     const status = error.response?.status
     const data = error.response?.data
-    const msg = data?.message || data?.msg || error.message || '请求失败，请稍后重试'
+    const msg = status === 502 && import.meta.env.DEV
+      ? '无法连接后端服务，请确认后端已启动且 VITE_BACKEND_PROXY_TARGET 指向正确端口'
+      : data?.message || data?.msg || error.message || '请求失败，请稍后重试'
 
     if (status === 401) {
       if (typeof localStorage !== 'undefined') {

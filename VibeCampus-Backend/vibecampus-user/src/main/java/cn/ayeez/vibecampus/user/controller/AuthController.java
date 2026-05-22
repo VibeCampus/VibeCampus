@@ -3,6 +3,7 @@ package cn.ayeez.vibecampus.user.controller;
 import cn.ayeez.vibecampus.common.dto.LoginRequest;
 import cn.ayeez.vibecampus.common.dto.LoginResponse;
 import cn.ayeez.vibecampus.common.dto.RegisterRequest;
+import cn.ayeez.vibecampus.user.service.CaptchaService;
 import cn.ayeez.vibecampus.user.service.AuthService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,9 +32,11 @@ public class AuthController {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AuthService authService;
+    private final CaptchaService captchaService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, CaptchaService captchaService) {
         this.authService = authService;
+        this.captchaService = captchaService;
     }
 
     @GetMapping("/captcha")
@@ -49,8 +52,10 @@ public class AuthController {
                 """.formatted(captcha);
         String image = "data:image/svg+xml;base64,"
                 + Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
+        String captchaId = UUID.randomUUID().toString();
+        captchaService.save(captchaId, captcha);
         return Map.of(
-                "captchaId", UUID.randomUUID().toString(),
+                "captchaId", captchaId,
                 "image", image
         );
     }

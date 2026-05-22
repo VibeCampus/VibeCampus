@@ -4,6 +4,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -56,5 +57,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMultipart(MultipartException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("message", "上传请求格式不完整，请重新选择文件后重试"));
+    }
+
+    @ExceptionHandler(CannotCreateTransactionException.class)
+    public ResponseEntity<Map<String, String>> handleDatabaseUnavailable(CannotCreateTransactionException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("message", "数据库连接失败，请确认本地 MySQL 已启动且 application-local.yml 配置正确"));
     }
 }

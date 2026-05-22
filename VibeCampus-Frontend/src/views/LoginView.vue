@@ -12,43 +12,39 @@ const socialStore = useSocialStore()
 const form = ref({ account: '', password: '', captcha: '' })
 const captchaId = ref('')
 const captchaImage = ref('')
-const captchaFallback = ref('')
 const showPwd = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-function generateLocalCaptcha() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
-
 async function refreshCaptcha() {
+  error.value = ''
   try {
     const res = await authApi.getCaptcha()
     if (res?.captchaId && res?.image) {
       captchaId.value = res.captchaId
       captchaImage.value = res.image.startsWith('data:') ? res.image : `data:image/png;base64,${res.image}`
-      captchaFallback.value = ''
       return
     }
-  } catch {
-    // 后端验证码接口不可用时，使用本地前端验证码
+  } catch (e) {
+    captchaId.value = ''
+    captchaImage.value = ''
+    error.value = e?.message || '验证码加载失败，请确认后端服务已启动'
+    return
   }
-  captchaId.value = `local-${Date.now()}`
+  captchaId.value = ''
   captchaImage.value = ''
-  captchaFallback.value = generateLocalCaptcha()
+  error.value = '验证码加载失败，请确认后端服务已启动'
 }
 
 onMounted(refreshCaptcha)
 
 async function submit() {
-  if (!form.value.account || !form.value.password || !form.value.captcha) {
-    error.value = '请填写所有字段'
+  if (!captchaId.value) {
+    error.value = '验证码未加载，请确认后端服务已启动'
     return
   }
-  if (captchaFallback.value && form.value.captcha.toUpperCase() !== captchaFallback.value) {
-    error.value = '验证码错误'
-    refreshCaptcha()
+  if (!form.value.account || !form.value.password || !form.value.captcha) {
+    error.value = '请填写所有字段'
     return
   }
   loading.value = true
@@ -91,7 +87,7 @@ async function submit() {
 
       <!-- Card -->
       <div class="bg-white border border-[#EBEBEB]">
-        <div class="px-8 py-8 space-y-4">
+        <form class="px-8 py-8 space-y-4" @submit.prevent="submit">
           <div v-if="error" class="text-[13px] text-red-500 bg-red-50 border border-red-100 px-3 py-2">
             {{ error }}
           </div>
@@ -124,7 +120,6 @@ async function submit() {
             <div class="flex gap-2">
               <input v-model="form.captcha" type="text" placeholder="图形验证码" maxlength="4"
                 class="flex-1 h-10 px-3 text-[14px] border border-[#EBEBEB] bg-white outline-none focus:border-[#1772F6] transition-colors tracking-widest" />
-              <!-- 后端验证码图片 -->
               <img
                 v-if="captchaImage"
                 :src="captchaImage"
@@ -132,14 +127,14 @@ async function submit() {
                 class="h-10 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                 alt="验证码"
               />
-              <!-- 前端本地验证码（后端不可用时降级） -->
-              <div
+              <button
                 v-else
+                type="button"
                 @click="refreshCaptcha"
-                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none font-mono font-bold text-[16px] text-[#1772F6] tracking-widest transition-colors shrink-0"
+                class="h-10 px-4 flex items-center justify-center bg-[#F6F6F6] border border-[#EBEBEB] cursor-pointer hover:bg-[#EBEBEB] select-none text-[13px] text-[#1772F6] transition-colors shrink-0"
               >
-                {{ captchaFallback }}
-              </div>
+                重试
+              </button>
             </div>
           </div>
 
@@ -150,11 +145,11 @@ async function submit() {
             </RouterLink>
           </div>
 
-          <button @click="submit" :disabled="loading"
+          <button type="submit" :disabled="loading"
             class="w-full h-10 bg-[#1772F6] text-white font-medium text-[14px] hover:bg-[#0d65e8] disabled:opacity-60 transition-colors cursor-pointer">
             {{ loading ? '登录中…' : '登录' }}
           </button>
-        </div>
+        </form>
 
         <div class="border-t border-[#EBEBEB] px-8 py-4 text-center text-[13px] text-[#8590A6]">
           还没有账号？

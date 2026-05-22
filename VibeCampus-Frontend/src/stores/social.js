@@ -397,10 +397,16 @@ export const useSocialStore = defineStore('social', () => {
     const id = normalizeId(u.id)
     const i = users.value.findIndex(x => normalizeId(x.id) === id)
     if (i >= 0) {
-      Object.assign(users.value[i], u)
+      Object.assign(users.value[i], compactUserPatch(u))
     } else {
       users.value.push(u)
     }
+  }
+
+  function compactUserPatch(user) {
+    return Object.fromEntries(
+      Object.entries(user).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+    )
   }
 
   function syncUserFromProfile(user) {

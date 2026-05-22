@@ -1,15 +1,30 @@
 package cn.ayeez.vibecampus.user.controller;
 
 
+import cn.ayeez.vibecampus.common.dto.ChangePasswordRequest;
 import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
+import cn.ayeez.vibecampus.common.dto.UserProfileUpdateRequest;
 import cn.ayeez.vibecampus.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 用户信息查询控制器（统一接口）
@@ -22,14 +37,21 @@ import java.util.Map;
  * <h3>支持的路径：</h3>
  * <ul>
  *   <li>GET /api/user/me - 查看当前登录用户信息</li>
- *   <li>GET /api/user/{userId} - 查看指定用户信息</li>
- *   <li>GET /users/{userId} - 兼容前端路由，查看指定用户信息</li>
+ *   <li>PUT /api/user/me - 更新当前登录用户信息</li>
+ *   <li>POST /api/user/me/avatar - 上传头像</li>
+ *   <li>PUT /api/user/me/password - 修改密码</li>
+ *   <li>GET /api/users/{userId} - 查看指定用户信息</li>
  * </ul>
  */
 @Slf4j
 @RestController
 @RequestMapping("/api")
 public class UserController {
+    private static final Path AVATAR_UPLOAD_BASE_DIR = Paths.get("uploads", "avatars");
+    private static final long MAX_AVATAR_SIZE_BYTES = 5L * 1024L * 1024L;
+    private static final Set<String> ALLOWED_AVATAR_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/gif"
+    );
 
     private final UserService userService;
 
@@ -45,7 +67,7 @@ public class UserController {
      * @param request HTTP请求对象，用于从属性中获取当前登录用户ID
      * @return 当前用户的完整详细信息
      */
-    @GetMapping("/users/me")
+    @GetMapping({"/user/me", "/users/me"})
     public ResponseEntity<?> getCurrentUserDetail(HttpServletRequest request) {
         // 从 JWT 认证过滤器注入的属性中获取当前用户ID
         Long currentUserId = (Long) request.getAttribute("currentUserId");
@@ -66,16 +88,57 @@ public class UserController {
         if (userDetail == null) {
             Map<String, Object> error = new HashMap<>();
             error.put("message", "用户不存在");
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(error);
         }
 
         // 返回当前用户的完整信息
         return ResponseEntity.ok(userDetail);
     }
 
+    @PutMapping({"/user/me", "/users/me"})
+    public ResponseEntity<?> updateCurrentUser(
+            @Valid @RequestBody UserProfileUpdateRequest requestBody,
+            HttpServletRequest request) {
+        Long currentUserId = (Long) request.getAttribute("currentUserId");
+        if (currentUserId == null || currentUserId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", "未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+        return ResponseEntity.ok(userService.updateCurrentUser(currentUserId, requestBody));
+    }
+
+    @PostMapping({"/user/me/avatar", "/users/me/avatar"})
+    public ResponseEntity<?> uploadAvatar(
+            @RequestPart("avatar") MultipartFile avatar,
+            HttpServletRequest request) {
+        Long currentUserId = (Long) request.getAttribute("currentUserId");
+        if (currentUserId == null || currentUserId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", "未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+        String avatarUrl = userService.updateAvatar(currentUserId, saveAvatar(avatar));
+        return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
+    }
+
+    @PutMapping({"/user/me/password", "/users/me/password"})
+    public ResponseEntity<?> changePassword(
+            @Valid @RequestBody ChangePasswordRequest requestBody,
+            HttpServletRequest request) {
+        Long currentUserId = (Long) request.getAttribute("currentUserId");
+        if (currentUserId == null || currentUserId <= 0) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("message", "未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+        userService.changePassword(currentUserId, requestBody.getOldPassword(), requestBody.getNewPassword());
+        return ResponseEntity.ok().build();
+    }
+
     /**
      * 查询指定用户的详细信息（统一接口）
-     * <p>路径：GET /api/user/{userId} 或 GET /users/{userId}</p>
+     * <p>路径：GET /api/users/{userId}</p>
      * <p>根据当前登录用户与目标用户的关系，自动返回不同详细程度的信息</p>
      *
      * <h3>使用场景：</h3>
@@ -126,10 +189,44 @@ public class UserController {
         if (userDetail == null) {
             Map<String, Object> error = new HashMap<>();
             error.put("message", "用户不存在");
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404).body(error);
         }
 
         // 返回用户详细信息，包含isCurrentUser标识
         return ResponseEntity.ok(userDetail);
+    }
+
+    private String saveAvatar(MultipartFile avatar) {
+        if (avatar == null || avatar.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "头像文件不能为空");
+        }
+        if (avatar.getSize() > MAX_AVATAR_SIZE_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "头像文件不能超过5MB");
+        }
+        String contentType = avatar.getContentType();
+        if (contentType == null || !ALLOWED_AVATAR_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "头像仅支持jpg/png/webp/gif");
+        }
+        String extension = switch (contentType.toLowerCase()) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            default -> ".jpg";
+        };
+        try {
+            LocalDate now = LocalDate.now();
+            Path relativeDirectory = Paths.get(String.valueOf(now.getYear()), String.format("%02d", now.getMonthValue()));
+            Path targetDirectory = AVATAR_UPLOAD_BASE_DIR.resolve(relativeDirectory);
+            Files.createDirectories(targetDirectory);
+            String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
+            Path targetPath = targetDirectory.resolve(fileName);
+            try (InputStream inputStream = avatar.getInputStream()) {
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return "/uploads/avatars/" + relativeDirectory.toString().replace("\\", "/") + "/" + fileName;
+        }
+        catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "头像保存失败，请稍后重试");
+        }
     }
 }

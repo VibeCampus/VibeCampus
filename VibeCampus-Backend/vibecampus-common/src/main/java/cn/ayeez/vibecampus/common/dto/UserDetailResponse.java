@@ -25,12 +25,16 @@ public class UserDetailResponse {
     private String username;
 
     private String nickname;
+    private String avatar;
     // 用户邮箱（仅自己可见）
     private String email;
     // 用户手机号（仅自己可见）
     private String phone;
-    // 性别：0-保密，1-男，2-女，3-其他
-    private Integer gender;
+    // 性别：男 / 女 / 保密 / 其他
+    private String gender;
+    private String bio;
+    private String major;
+    private String joinedAt;
     // 用户状态：0-禁用，1-正常
     private Integer status;
     // 标识是否为用户本人

@@ -4,10 +4,10 @@ import { normalizeUser } from './normalize'
 const userApi = {
   /**
    * 当前登录用户详情
-   * 后端：GET /api/users/me
+   * 后端：GET /api/user/me
    */
   getCurrentUserDetail() {
-    return http.get('/users/me').then(res => normalizeUser(res) || res)
+    return http.get('/user/me').then(res => normalizeUser(res) || res)
   },
 
   /**
@@ -28,27 +28,27 @@ const userApi = {
    * 以下接口若后端尚未提供，会返回 404，可后续再对齐
    */
   updateProfile(data) {
-    return http.put('/users/me', data)
+    return http.put('/user/me', data).then(res => normalizeUser(res) || res)
   },
 
   uploadAvatar(formData) {
-    return http.post('/users/me/avatar', formData)
+    return http.post('/user/me/avatar', formData)
   },
 
   changePassword(data) {
-    return http.put('/users/me/password', data)
+    return http.put('/user/me/password', data)
   },
 
   getMyPosts(params = {}) {
-    return http.get('/users/me/posts', { params })
+    return http.get('/user/me/posts', { params })
   },
 
   getMyComments(params = {}) {
-    return http.get('/users/me/comments', { params })
+    return http.get('/user/me/comments', { params })
   },
 
   getMyFavorites(params = {}) {
-    return http.get('/users/me/favorites', { params })
+    return http.get('/user/me/favorites', { params })
   },
 
   getPublicProfile(userId) {

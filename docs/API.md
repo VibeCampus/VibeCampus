@@ -334,7 +334,7 @@ HTTP 2xx 时，响应体即为业务 JSON，例如：
 | `account` | string | 是 | 与登录页一致：用户名或手机号（`LoginView` placeholder）。 |
 | `password` | string | 是 | |
 | `captcha` | string | 是 | 用户输入的图形验证码内容。 |
-| `captchaId` | string | **条件** | **若后端校验图形码依赖 id，则必填**；与 `GET /auth/captcha` 配对。**当前 `src/api/auth.js` 未传此字段**，联调前前端需补上。 |
+| `captchaId` | string | 是 | 与 `GET /auth/captcha` 返回的 `captchaId` 配对；当前前端 `authApi.login` 已传。 |
 
 **响应**：`token` string，`user` 对象结构同 **§6.1**。
 
@@ -346,7 +346,8 @@ HTTP 2xx 时，响应体即为业务 JSON，例如：
 | `phone` | string | 是 | 11 位手机号，后端校验。 |
 | `password` | string | 是 | 建议最少 8 位；前端注册页有强度提示。 |
 | `captcha` | string | 是 | |
-| `gender` | string | **建议必填** | 与注册页一致：**男 / 女 / 保密**。**当前 `authApi.register` 未传**，联调前前端补传。 |
+| `captchaId` | string | 是 | 与 `GET /auth/captcha` 返回的 `captchaId` 配对；当前前端 `authApi.register` 已传。 |
+| `gender` | string | **建议必填** | 与注册页一致：**男 / 女 / 保密 / 其他**；当前前端 `authApi.register` 已传。 |
 
 ### 7.4 `POST /auth/sms`
 
@@ -530,7 +531,7 @@ Query：`limit`，**§2.3**。
 
 ## 14. 联调检查清单（前端）
 
-1. `auth.js`：`login` 是否增加 `captchaId`；`register` 是否增加 `gender`。  
+1. `auth.js`：`login` / `register` 已传 `captchaId`，`register` 已传 `gender`；后续如调整验证码策略需同步这里。
 2. `index.js`：401 清除 **`userInfo`** 与 `token` 一致。  
 3. 各页面、store：用 `authApi` / `postApi` 等替换 Mock。  
 4. 用户与管理员 Token 是否分存储（若需要）。
