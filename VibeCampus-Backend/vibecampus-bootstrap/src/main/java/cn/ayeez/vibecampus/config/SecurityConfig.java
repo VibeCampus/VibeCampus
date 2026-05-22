@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/ping/**").permitAll()
                         // 需要认证的接口
                         .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
