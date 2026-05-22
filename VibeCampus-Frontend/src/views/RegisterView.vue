@@ -33,7 +33,7 @@ async function refreshCaptcha() {
   } catch {
     // fallback
   }
-  captchaId.value = ''
+  captchaId.value = `local-${Date.now()}`
   captchaImage.value = ''
   captchaFallback.value = generateLocalCaptcha()
 }
