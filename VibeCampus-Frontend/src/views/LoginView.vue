@@ -34,7 +34,7 @@ async function refreshCaptcha() {
   } catch {
     // 后端验证码接口不可用时，使用本地前端验证码
   }
-  captchaId.value = ''
+  captchaId.value = `local-${Date.now()}`
   captchaImage.value = ''
   captchaFallback.value = generateLocalCaptcha()
 }

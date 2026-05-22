@@ -7,11 +7,18 @@ import cn.ayeez.vibecampus.user.service.AuthService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * HTTP 认证入口：路径与前端 {@code baseURL}（默认 {@code /api}）+ {@code /auth/*} 对齐。
@@ -20,11 +27,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final String CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AuthService authService;
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @GetMapping("/captcha")
+    public Map<String, String> captcha() {
+        String captcha = randomCaptcha();
+        String svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" width="112" height="40" viewBox="0 0 112 40">
+                  <rect width="112" height="40" fill="#f6f8fb"/>
+                  <line x1="8" y1="31" x2="104" y2="9" stroke="#d7dde8" stroke-width="2"/>
+                  <line x1="4" y1="10" x2="108" y2="30" stroke="#e3e8f1" stroke-width="2"/>
+                  <text x="56" y="27" text-anchor="middle" font-family="Consolas, Monaco, monospace" font-size="22" font-weight="700" letter-spacing="4" fill="#1772f6">%s</text>
+                </svg>
+                """.formatted(captcha);
+        String image = "data:image/svg+xml;base64,"
+                + Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
+        return Map.of(
+                "captchaId", UUID.randomUUID().toString(),
+                "image", image
+        );
     }
 
     /**
@@ -67,5 +95,13 @@ public class AuthController {
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         authService.logout(request.getHeader("Authorization"));
         return ResponseEntity.ok().build();
+    }
+
+    private String randomCaptcha() {
+        StringBuilder captcha = new StringBuilder(4);
+        for (int i = 0; i < 4; i++) {
+            captcha.append(CAPTCHA_CHARS.charAt(RANDOM.nextInt(CAPTCHA_CHARS.length())));
+        }
+        return captcha.toString();
     }
 }

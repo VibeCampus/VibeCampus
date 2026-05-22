@@ -12,9 +12,52 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+const PUBLIC_AUTH_PATHS = [
+  '/auth/captcha',
+  '/auth/login',
+  '/auth/register',
+  '/auth/sms',
+  '/auth/sms/verify',
+  '/auth/reset-password',
+  '/admin/auth/login',
+]
+
+function getRequestPath(config = {}) {
+  const rawUrl = config.url || ''
+  const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin
+
+  try {
+    const parsed = new URL(rawUrl, origin)
+    return parsed.pathname.replace(/^\/api(?=\/)/, '')
+  } catch {
+    return rawUrl.split('?')[0].replace(/^\/api(?=\/)/, '')
+  }
+}
+
+function isPublicAuthRequest(config) {
+  const path = getRequestPath(config)
+  return PUBLIC_AUTH_PATHS.some(publicPath => path === publicPath || path.startsWith(`${publicPath}/`))
+}
+
+function removeAuthorizationHeader(headers) {
+  if (!headers) return
+  if (typeof headers.delete === 'function') {
+    headers.delete('Authorization')
+    headers.delete('authorization')
+    return
+  }
+  delete headers.Authorization
+  delete headers.authorization
+}
+
 // ── 请求拦截器：自动带上 token ──────────────────────────────
 http.interceptors.request.use(
   config => {
+    if (isPublicAuthRequest(config)) {
+      removeAuthorizationHeader(config.headers)
+      return config
+    }
+
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -33,10 +76,19 @@ http.interceptors.response.use(
     const msg = data?.message || data?.msg || error.message || '请求失败，请稍后重试'
 
     if (status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      window.location.href = '/userlogin'
-      return Promise.reject(error)
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
+      }
+
+      if (!isPublicAuthRequest(error.config) && typeof window !== 'undefined') {
+        const requestPath = getRequestPath(error.config)
+        const loginPath = requestPath.startsWith('/admin/') ? '/admin/login' : '/userlogin'
+        if (window.location.pathname !== loginPath) {
+          window.location.href = loginPath
+        }
+      }
+      return Promise.reject(new Error(msg))
     }
 
     if (status === 403) {
