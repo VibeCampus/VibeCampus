@@ -34,17 +34,13 @@ const postApi = {
    */
   create(body) {
     if (body instanceof FormData) {
-      return http.post('/posts', body, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      return http.post('/posts', body)
     }
     const formData = new FormData()
     formData.append('category', body.category)
     formData.append('content', body.content)
     formData.append('anonymous', String(body.anonymous ?? false))
-    return http.post('/posts', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return http.post('/posts', formData)
   },
 
   remove(id) {
