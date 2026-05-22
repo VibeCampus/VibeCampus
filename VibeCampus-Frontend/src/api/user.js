@@ -32,9 +32,7 @@ const userApi = {
   },
 
   uploadAvatar(formData) {
-    return http.post('/users/me/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return http.post('/users/me/avatar', formData)
   },
 
   changePassword(data) {

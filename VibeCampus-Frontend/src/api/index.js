@@ -50,9 +50,28 @@ function removeAuthorizationHeader(headers) {
   delete headers.authorization
 }
 
+function isFormDataRequest(config) {
+  return typeof FormData !== 'undefined' && config?.data instanceof FormData
+}
+
+function removeContentTypeHeader(headers) {
+  if (!headers) return
+  if (typeof headers.delete === 'function') {
+    headers.delete('Content-Type')
+    headers.delete('content-type')
+    return
+  }
+  delete headers['Content-Type']
+  delete headers['content-type']
+}
+
 // ── 请求拦截器：自动带上 token ──────────────────────────────
 http.interceptors.request.use(
   config => {
+    if (isFormDataRequest(config)) {
+      removeContentTypeHeader(config.headers)
+    }
+
     if (isPublicAuthRequest(config)) {
       removeAuthorizationHeader(config.headers)
       return config

@@ -178,9 +178,7 @@ const adminApi = {
    * @param {FormData} formData
    */
   importUsers(formData) {
-    return http.post('/admin/users/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return http.post('/admin/users/import', formData)
   },
 
   /**
