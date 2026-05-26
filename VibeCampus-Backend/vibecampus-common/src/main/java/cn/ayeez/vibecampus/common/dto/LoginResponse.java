@@ -15,6 +15,6 @@ public class LoginResponse {
 
     /** 访问令牌：JWT 字符串 */
     private String token;
-    /** 当前登录用户公开信息 */
+    /** 当前登录用户信息 */
     private UserInfo user;
 }

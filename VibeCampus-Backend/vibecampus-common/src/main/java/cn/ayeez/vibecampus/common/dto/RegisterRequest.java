@@ -2,6 +2,7 @@ package cn.ayeez.vibecampus.common.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -37,15 +38,23 @@ import lombok.Data;
         private String captcha;
 
         /**
-         * 性别：与前端约定值（男 / 女 / 保密）
+         * 图形验证码会话 ID：与 GET /auth/captcha 返回值配对
+         */
+        @NotBlank(message = "captchaId不能为空")
+        private String captchaId;
+
+        /**
+         * 性别：与前端约定值（男 / 女 / 保密 / 其他）
          */
         private String gender;
 
         /**
-         * 手机号：可选，如果提供则必须符合中国大陆手机号格式
+         * 手机号：必填，必须符合中国大陆手机号格式
          * - 用于找回密码或接收通知
          * - 数据库中设置为唯一约束
          */
+        @NotBlank(message = "手机号不能为空")
+        @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
         private String phone;
 
         /**

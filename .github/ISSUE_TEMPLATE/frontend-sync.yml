@@ -1,0 +1,110 @@
+name: "前端任务 - 接口联调"
+description: "根据接口文档完成帖子模块和用户模块的前端联调"
+title: "[FE][Sync] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请基于接口文档完成页面接入和联调。
+        这个 Issue 的关闭标准是：页面可用、接口接通、状态完整、测试环境联调通过。
+  - type: input
+    id: interface_doc
+    attributes:
+      label: 接口文档
+      description: 写清楚帖子接口和用户接口对应的文档链接或章节名
+      placeholder: 例如：帖子模块 / 用户模块 / 接口文档
+    validations:
+      required: true
+  - type: textarea
+    id: pages
+    attributes:
+      label: 联调页面
+      description: 详细列出需要接入的页面或模块
+      placeholder: |
+        - 帖子详情页
+        - 评论区 / 二级评论
+        - 点赞 / 收藏 / 转发交互
+        - 个人主页
+        - 关注 / 粉丝列表
+        - 修改资料
+        - 修改密码
+        - 用户注销流程
+    validations:
+      required: true
+  - type: textarea
+    id: api_mapping
+    attributes:
+      label: 接口映射
+      description: 写清楚页面对应哪些接口
+      placeholder: |
+        - 帖子详情页 -> 帖子详情接口、点赞接口、评论接口
+        - 个人主页 -> 用户信息接口、关注状态接口
+        - 修改资料 -> 用户信息更新接口
+  - type: textarea
+    id: state_handling
+    attributes:
+      label: 状态处理
+      description: 写清楚 loading、empty、error、未登录等状态处理要求
+      placeholder: |
+        - loading 状态
+        - 空列表状态
+        - 接口错误提示
+        - 未登录跳转 / 拦截
+        - 权限不足提示
+  - type: textarea
+    id: self_test
+    attributes:
+      label: 自测清单
+      description: 提交前请写清楚你已经验证过的内容
+      placeholder: |
+        - [ ] 帖子互动链路正常
+        - [ ] 二级评论正常
+        - [ ] 关注 / 取关正常
+        - [ ] 关注列表 / 粉丝列表正常
+        - [ ] 修改资料正常
+        - [ ] 修改密码正常
+        - [ ] 注销流程正常
+        - [ ] 页面异常状态处理正常
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 这个 Issue 什么时候可以关闭
+      placeholder: |
+        - 两个后端模块均已接通
+        - 核心页面可完整跑通
+        - 测试环境联调通过
+        - 已知问题已同步
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: 负责人
+      description: 填写前端同学名字
+      placeholder: 例如：赵六
+    validations:
+      required: true
+  - type: input
+    id: backend_owner
+    attributes:
+      label: 对接后端
+      description: 填写需要联调的后端同学名字
+      placeholder: 例如：张三 / 王五
+  - type: input
+    id: deadline
+    attributes:
+      label: 截止时间
+      description: 填写计划完成日期
+      placeholder: 例如：2026-06-02
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注 / 风险
+      description: 记录 mock、样式依赖、接口缺口等
+      placeholder: |
+        - 接口未好时先用 mock
+        - 需要确认分页和排序规则
+        - 需要确认字段命名与后端一致

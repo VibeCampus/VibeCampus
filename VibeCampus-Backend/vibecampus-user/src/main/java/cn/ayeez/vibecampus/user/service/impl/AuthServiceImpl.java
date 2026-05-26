@@ -7,6 +7,7 @@ import cn.ayeez.vibecampus.common.dto.UserInfo;
 import cn.ayeez.vibecampus.user.mapper.UserMapper;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 import cn.ayeez.vibecampus.user.service.AuthService;
+import cn.ayeez.vibecampus.user.service.CaptchaService;
 import cn.ayeez.vibecampus.user.service.JwtTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,10 +39,11 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final CaptchaService captchaService;
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        // 1) 验证码（当前仅非空校验，避免与图形验证码接口脱节）
+        // 1) 校验图形验证码。验证码一次性使用，失败后需刷新。
         assertCaptcha(request.getCaptcha(), request.getCaptchaId());
         String account = request.getAccount().trim();
         String throttleKey = buildThrottleKey(account);
@@ -67,30 +69,21 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtTokenService.generateAccessToken(user);
 
-        UserInfo info = new UserInfo(user.getId(), user.getUsername(), user.getPhone());
+        UserInfo info = toUserInfo(user, true);
         return new LoginResponse(token, info);
     }
 
-    /**
-     * 验证码校验占位：非空即可通过。
-     * <p>生产环境应与 {@code GET /auth/captcha} 下发的 captchaId 及 Redis/Session 中正确答案比对。</p>
-     */
     private void assertCaptcha(String captcha, String captchaId) {
         if (captcha == null || captcha.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "验证码不能为空");
         }
-        if (captchaId == null || captchaId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "captchaId不能为空");
-        }
-        // TODO: captchaId + 缓存答案校验
+        captchaService.verify(captchaId, captcha);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LoginResponse register(RegisterRequest request) {
-        if (request.getCaptcha() == null || request.getCaptcha().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "验证码不能为空");
-        }
+        captchaService.verify(request.getCaptchaId(), request.getCaptcha());
         // 1) 参数预处理：去除首尾空格
         String username = request.getUsername().trim();
         String password = request.getPassword();
@@ -161,7 +154,8 @@ public class AuthServiceImpl implements AuthService {
         Long userId = newUser.getId();
         log.info("用户注册成功，userId={}, username={}", userId, username);
         String token = jwtTokenService.generateAccessToken(newUser);
-        UserInfo info = new UserInfo(newUser.getId(), newUser.getUsername(), newUser.getPhone());
+        UserProfile createdUser = userMapper.selectFullProfileById(userId);
+        UserInfo info = toUserInfo(createdUser == null ? newUser : createdUser, true);
         return new LoginResponse(token, info);
     }
 
@@ -224,7 +218,42 @@ public class AuthServiceImpl implements AuthService {
         if ("女".equals(gender)) {
             return 2;
         }
+        if ("其他".equals(gender)) {
+            return 3;
+        }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "gender取值非法");
+    }
+
+    private UserInfo toUserInfo(UserProfile user, boolean currentUser) {
+        return UserInfo.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .avatar(user.getAvatarUrl())
+                .phone(currentUser ? user.getPhone() : null)
+                .email(currentUser ? user.getEmail() : null)
+                .gender(formatGender(user.getGender()))
+                .bio(user.getBio())
+                .major(user.getMajor())
+                .joinedAt(user.getCreatedAt() == null ? null : user.getCreatedAt().toLocalDate().toString())
+                .status(user.getStatus())
+                .isCurrentUser(currentUser)
+                .build();
+    }
+
+    private String formatGender(Integer gender) {
+        if (gender == null || gender == 0) {
+            return "保密";
+        }
+        if (gender == 1) {
+            return "男";
+        }
+        if (gender == 2) {
+            return "女";
+        }
+        if (gender == 3) {
+            return "其他";
+        }
+        return "保密";
     }
 
     private String maskPhone(String phone) {

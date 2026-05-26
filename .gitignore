@@ -34,3 +34,6 @@ Thumbs.db
 **/target/
 **/node_modules/
 **/dist/
+
+# ----- 本地上传文件（运行时生成，不入库）-----
+uploads/

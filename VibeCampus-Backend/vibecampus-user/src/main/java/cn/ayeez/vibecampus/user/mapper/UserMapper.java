@@ -14,9 +14,10 @@ public interface UserMapper {
      * 按主键查询单条用户（用于「当前用户」等场景）。
      */
     @Select("""
-            select id, username, phone, email, gender, password_hash AS passwordHash
+            select id, username, nickname, avatar_url as avatarUrl, phone, email, gender, bio, major,
+                   status, created_at as createdAt, password_hash AS passwordHash
             from users
-            where id = #{userId}
+            where id = #{userId} and deleted_at is null
             """)
     UserProfile selectById(@Param("userId") Long userId);
 
@@ -25,9 +26,11 @@ public interface UserMapper {
      * <p>用于 {@code POST /api/auth/login} 根据前端传入的 account 定位用户。</p>
      */
     @Select("""
-            select id, username, phone, email, gender, password_hash as passwordHash
+            select id, username, nickname, avatar_url as avatarUrl, phone, email, gender, bio, major,
+                   status, created_at as createdAt, password_hash as passwordHash
             from users
-            where username = #{account} or phone = #{account} or email = #{account}
+            where (username = #{account} or phone = #{account} or email = #{account})
+              and deleted_at is null
             limit 1
             """)
     UserProfile selectByAccount(@Param("account") String account);
@@ -37,7 +40,7 @@ public interface UserMapper {
      * 用于用户注册流程，将注册信息持久化到数据库
      * username 用户名，必须唯一
      * passwordHash BCrypt加密后的密码哈希值（成本因子为10）
-     * phone 手机号，可选，如果提供则必须唯一
+     * phone 手机号，必填且必须唯一
      * email 邮箱，可选，如果提供则必须唯一
      * nickname 昵称，可选
      * @return 插入的记录数（成功为1）
@@ -56,9 +59,51 @@ public interface UserMapper {
      * @return 用户完整档案，不存在则返回null
      */
     @Select("""
-            select id, username, phone, email, nickname, gender, status, password_hash AS passwordHash
+            select id, username, phone, email, nickname, avatar_url as avatarUrl, gender, bio, major,
+                   status, created_at as createdAt, password_hash AS passwordHash
             from users
-            where id = #{userId}
+            where id = #{userId} and deleted_at is null
             """)
     UserProfile selectFullProfileById(@Param("userId") Long userId);
+
+    @Update("""
+            <script>
+            update users
+            <set>
+              <if test="hasUsername">username = #{username}, nickname = #{nickname},</if>
+              <if test="hasPhone">phone = #{phone},</if>
+              <if test="hasEmail">email = #{email},</if>
+              <if test="hasGender">gender = #{gender},</if>
+              <if test="hasBio">bio = #{bio},</if>
+            </set>
+            where id = #{id} and deleted_at is null
+            </script>
+            """)
+    int updateProfile(
+            @Param("id") Long id,
+            @Param("hasUsername") boolean hasUsername,
+            @Param("username") String username,
+            @Param("nickname") String nickname,
+            @Param("hasPhone") boolean hasPhone,
+            @Param("phone") String phone,
+            @Param("hasEmail") boolean hasEmail,
+            @Param("email") String email,
+            @Param("hasGender") boolean hasGender,
+            @Param("gender") Integer gender,
+            @Param("hasBio") boolean hasBio,
+            @Param("bio") String bio);
+
+    @Update("""
+            update users
+            set avatar_url = #{avatarUrl}
+            where id = #{userId} and deleted_at is null
+            """)
+    int updateAvatar(@Param("userId") Long userId, @Param("avatarUrl") String avatarUrl);
+
+    @Update("""
+            update users
+            set password_hash = #{passwordHash}
+            where id = #{userId} and deleted_at is null
+            """)
+    int updatePassword(@Param("userId") Long userId, @Param("passwordHash") String passwordHash);
 }

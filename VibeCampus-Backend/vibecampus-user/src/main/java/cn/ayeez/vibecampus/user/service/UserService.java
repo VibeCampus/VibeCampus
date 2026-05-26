@@ -1,6 +1,7 @@
 package cn.ayeez.vibecampus.user.service;
 
 import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
+import cn.ayeez.vibecampus.common.dto.UserProfileUpdateRequest;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 
 /**
@@ -25,4 +26,10 @@ public interface UserService {
      * return 用户详细信息响应对象，若不存在则返回null
      */
     UserDetailResponse getUserDetail(Long targetUserId, Long currentUserId);
+
+    UserDetailResponse updateCurrentUser(Long currentUserId, UserProfileUpdateRequest request);
+
+    String updateAvatar(Long currentUserId, String avatarUrl);
+
+    void changePassword(Long currentUserId, String oldPassword, String newPassword);
 }

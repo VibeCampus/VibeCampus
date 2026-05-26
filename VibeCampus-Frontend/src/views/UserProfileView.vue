@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
+import userApi from '@/api/user'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const route = useRoute()
@@ -14,6 +15,8 @@ const activeTab = ref('profile')
 const profileMsg = ref('')
 const pwdMsg = ref('')
 const avatarInput = ref(null)
+const loadingUser = ref(false)
+const loadError = ref('')
 
 const pwdForm = ref({ old: '', new_: '', confirm: '' })
 const profileForm = ref({ username: '', phone: '', email: '', gender: '保密', bio: '' })
@@ -71,21 +74,51 @@ function syncProfileForm() {
   }
 }
 
-watch(() => route.fullPath, () => {
+watch(() => route.fullPath, async () => {
   activeTab.value = 'profile'
   profileMsg.value = ''
   pwdMsg.value = ''
+  loadError.value = ''
+  await loadViewedUser()
   syncProfileForm()
 }, { immediate: true })
 
-function saveProfile() {
-  if (!isSelf.value) return
-  userStore.updateUserInfo(profileForm.value)
-  socialStore.updateCurrentUserProfile(profileForm.value)
-  profileMsg.value = '资料已保存'
+async function loadViewedUser() {
+  const id = viewedUserId.value
+  if (!id) return
+  loadingUser.value = true
+  try {
+    const user = route.params.id
+      ? await userApi.getUserDetail(id)
+      : await userApi.getCurrentUserDetail()
+    if (user) {
+      socialStore.syncUserFromProfile(user)
+      if (!route.params.id) {
+        userStore.updateUserInfo(user)
+      }
+    }
+  } catch (e) {
+    loadError.value = e?.message || '用户资料加载失败'
+  } finally {
+    loadingUser.value = false
+  }
 }
 
-function changePwd() {
+async function saveProfile() {
+  if (!isSelf.value) return
+  profileMsg.value = ''
+  try {
+    const user = await userApi.updateProfile(profileForm.value)
+    userStore.updateUserInfo(user)
+    socialStore.syncUserFromProfile(user)
+    syncProfileForm()
+    profileMsg.value = '资料已保存'
+  } catch (e) {
+    profileMsg.value = e?.message || '资料保存失败'
+  }
+}
+
+async function changePwd() {
   if (!pwdForm.value.old || !pwdForm.value.new_ || !pwdForm.value.confirm) {
     pwdMsg.value = '请填写所有字段'
     return
@@ -94,26 +127,33 @@ function changePwd() {
     pwdMsg.value = '两次密码不一致'
     return
   }
-  pwdMsg.value = '密码修改成功'
-  pwdForm.value = { old: '', new_: '', confirm: '' }
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
+  try {
+    await userApi.changePassword({
+      oldPassword: pwdForm.value.old,
+      newPassword: pwdForm.value.new_,
+    })
+    pwdMsg.value = '密码修改成功'
+    pwdForm.value = { old: '', new_: '', confirm: '' }
+  } catch (e) {
+    pwdMsg.value = e?.message || '密码修改失败'
+  }
 }
 
 async function handleAvatarChange(event) {
   const file = event.target.files?.[0]
   if (!file || !isSelf.value) return
-  const avatar = await readFileAsDataUrl(file)
-  userStore.updateUserInfo({ avatar })
-  socialStore.updateCurrentUserProfile({ avatar })
-  profileMsg.value = '头像已更新'
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    const res = await userApi.uploadAvatar(formData)
+    const avatar = res?.avatarUrl || res?.avatar
+    if (!avatar) throw new Error('头像响应缺少 avatarUrl')
+    userStore.updateUserInfo({ avatar })
+    socialStore.updateCurrentUserProfile({ avatar })
+    profileMsg.value = '头像已更新'
+  } catch (e) {
+    profileMsg.value = e?.message || '头像更新失败'
+  }
   event.target.value = ''
 }
 
@@ -133,7 +173,21 @@ function userCardStats(userId) {
 <template>
   <div class="min-h-screen bg-[#F6F6F6]">
     <div class="max-w-[980px] mx-auto px-4 py-5">
-      <div v-if="!viewedUser" class="bg-white border border-[#EBEBEB] px-6 py-10 text-center">
+      <div v-if="loadingUser" class="bg-white border border-[#EBEBEB] px-6 py-10 text-center">
+        <p class="text-[15px] text-[#1A1A1A] mb-3">用户资料加载中...</p>
+      </div>
+
+      <div v-else-if="loadError" class="bg-white border border-[#EBEBEB] px-6 py-10 text-center">
+        <p class="text-[15px] text-[#1A1A1A] mb-3">{{ loadError }}</p>
+        <button
+          @click="loadViewedUser"
+          class="px-5 py-2 bg-[#1772F6] text-white text-[13px] hover:bg-[#0d65e8] transition-colors cursor-pointer"
+        >
+          重新加载
+        </button>
+      </div>
+
+      <div v-else-if="!viewedUser" class="bg-white border border-[#EBEBEB] px-6 py-10 text-center">
         <p class="text-[15px] text-[#1A1A1A] mb-3">用户不存在</p>
         <button
           @click="router.push('/')"

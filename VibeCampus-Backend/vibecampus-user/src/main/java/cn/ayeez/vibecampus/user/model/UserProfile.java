@@ -13,6 +13,8 @@ public class UserProfile {
     private Long id;
     /** 登录名 / 展示名 */
     private String username;
+    /** 头像 URL */
+    private String avatarUrl;
     /** 手机号，可与 {@link #username} 二选一作为登录账号 */
     private String phone;
     /**
@@ -25,6 +27,12 @@ public class UserProfile {
     private String email;
     /** 性别：0-保密/未知，1-男，2-女 */
     private Integer gender;
+    /** 个人简介 */
+    private String bio;
+    /** 专业 */
+    private String major;
     /** 用户状态：0-禁用，1-启用 */
     private Integer status;
+    /** 注册时间 */
+    private java.time.LocalDateTime createdAt;
 }
