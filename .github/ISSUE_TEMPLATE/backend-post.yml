@@ -1,0 +1,108 @@
+name: "后端任务 - 帖子相关"
+description: "根据接口文档开发帖子互动相关功能，包括点赞、评论、转发、收藏、二级评论等"
+title: "[BE][Post] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请按照接口文档和当前模块约定填写。
+        这个 Issue 的关闭标准是：后端实现完成、异常处理到位、前端联调通过、测试环境可用。
+  - type: input
+    id: interface_doc
+    attributes:
+      label: 接口文档
+      description: 写清楚对应文档链接或章节名
+      placeholder: 例如：接口文档 / 帖子模块 / 3.2 点赞与评论
+    validations:
+      required: true
+  - type: textarea
+    id: task_scope
+    attributes:
+      label: 任务范围
+      description: 详细列出本 Issue 需要完成的功能
+      placeholder: |
+        - 点赞 / 取消点赞
+        - 收藏 / 取消收藏
+        - 一级评论
+        - 二级评论 / 回复评论
+        - 评论删除
+        - 转发 / 分享
+        - 点赞数、评论数、收藏数等统计
+    validations:
+      required: true
+  - type: textarea
+    id: business_rules
+    attributes:
+      label: 业务规则与边界条件
+      description: 写清楚登录态、权限、重复操作、异常返回等规则
+      placeholder: |
+        - 未登录用户不能操作
+        - 重复点赞 / 重复收藏要幂等处理
+        - 删除评论时要处理子评论关联关系
+        - 统计数据需要和业务状态保持一致
+  - type: textarea
+    id: implementation_requirements
+    attributes:
+      label: 开发要求
+      description: 写清楚实现时需要遵守的约定
+      placeholder: |
+        - 按接口文档返回字段开发
+        - 如需调整数据库字段请同步说明
+        - 接口命名、状态码、错误码与现有项目保持一致
+        - 修改后及时同步给前端
+  - type: textarea
+    id: self_test
+    attributes:
+      label: 自测清单
+      description: 提交前请写清楚你已经验证过的内容
+      placeholder: |
+        - [ ] 点赞成功 / 取消点赞
+        - [ ] 收藏成功 / 取消收藏
+        - [ ] 一级评论正常
+        - [ ] 二级评论正常
+        - [ ] 评论删除正常
+        - [ ] 转发正常
+        - [ ] 异常场景已处理
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 这个 Issue 什么时候可以关闭
+      placeholder: |
+        - 核心功能按接口文档完成
+        - 前后端联调通过
+        - 测试环境可正常使用
+        - 未知问题已列出并同步
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: 负责人
+      description: 填写后端同学名字
+      placeholder: 例如：张三
+    validations:
+      required: true
+  - type: input
+    id: frontend_owner
+    attributes:
+      label: 联调前端
+      description: 填写负责联调的前端同学名字
+      placeholder: 例如：李四
+  - type: input
+    id: deadline
+    attributes:
+      label: 截止时间
+      description: 填写计划完成日期
+      placeholder: 例如：2026-06-02
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注 / 风险
+      description: 记录接口缺口、依赖任务、数据库变更等
+      placeholder: |
+        - 依赖某个通用接口先完成
+        - 需要新增字段或索引
+        - 有兼容性风险

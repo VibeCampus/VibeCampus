@@ -1,0 +1,108 @@
+name: "后端任务 - 用户相关"
+description: "根据接口文档开发用户相关功能，包括关注、关注列表、粉丝列表、修改信息、修改密码、用户注销等"
+title: "[BE][User] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请严格按接口文档实现用户模块。
+        这个 Issue 的关闭标准是：功能实现完成、敏感操作处理正确、前端联调通过、测试环境可用。
+  - type: input
+    id: interface_doc
+    attributes:
+      label: 接口文档
+      description: 写清楚对应文档链接或章节名
+      placeholder: 例如：接口文档 / 用户模块 / 4.1 关注关系
+    validations:
+      required: true
+  - type: textarea
+    id: task_scope
+    attributes:
+      label: 任务范围
+      description: 详细列出本 Issue 需要完成的功能
+      placeholder: |
+        - 关注 / 取关
+        - 关注列表
+        - 粉丝列表
+        - 修改个人信息
+        - 修改密码
+        - 用户注销 / 账号注销
+        - 用户资料页相关接口
+    validations:
+      required: true
+  - type: textarea
+    id: business_rules
+    attributes:
+      label: 业务规则与边界条件
+      description: 写清楚登录态、权限、敏感操作等规则
+      placeholder: |
+        - 关注关系需要保证幂等
+        - 修改密码需要严格校验旧密码或文档要求的验证方式
+        - 注销账号属于敏感操作，需要确认和状态处理
+        - 关注列表 / 粉丝列表分页规则按文档执行
+  - type: textarea
+    id: implementation_requirements
+    attributes:
+      label: 开发要求
+      description: 写清楚实现时需要遵守的约定
+      placeholder: |
+        - 返回字段按接口文档对齐
+        - 如果涉及用户状态字段变更，请同步说明
+        - 注意与现有登录态、鉴权、用户信息结构保持一致
+        - 修改后及时同步给前端联调
+  - type: textarea
+    id: self_test
+    attributes:
+      label: 自测清单
+      description: 提交前请写清楚你已经验证过的内容
+      placeholder: |
+        - [ ] 关注成功 / 取消关注
+        - [ ] 关注列表正常
+        - [ ] 粉丝列表正常
+        - [ ] 修改信息正常
+        - [ ] 修改密码正常
+        - [ ] 用户注销正常
+        - [ ] 异常场景已处理
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 这个 Issue 什么时候可以关闭
+      placeholder: |
+        - 核心功能按接口文档完成
+        - 前后端联调通过
+        - 测试环境可正常使用
+        - 风险点已同步说明
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: 负责人
+      description: 填写后端同学名字
+      placeholder: 例如：王五
+    validations:
+      required: true
+  - type: input
+    id: frontend_owner
+    attributes:
+      label: 联调前端
+      description: 填写负责联调的前端同学名字
+      placeholder: 例如：李四
+  - type: input
+    id: deadline
+    attributes:
+      label: 截止时间
+      description: 填写计划完成日期
+      placeholder: 例如：2026-06-02
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 备注 / 风险
+      description: 记录接口缺口、依赖任务、数据库变更等
+      placeholder: |
+        - 可能需要调整用户表字段
+        - 用户注销逻辑需要确认是否软删
+        - 需要和前端确认接口返回字段
