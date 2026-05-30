@@ -31,4 +31,15 @@ public final class PostCurrentUserContext {
         }
         return userId;
     }
+
+    /**
+     * 获取当前登录用户 ID，如果未登录则返回 null。
+     */
+    public static Long getCurrentUserIdOrNull() {
+        try {
+            return getCurrentUserId();
+        } catch (ResponseStatusException e) {
+            return null;
+        }
+    }
 }

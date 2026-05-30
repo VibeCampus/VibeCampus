@@ -1,16 +1,13 @@
 package cn.ayeez.vibecampus.post.model;
 
+import cn.ayeez.vibecampus.common.dto.AuthorInfo;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 帖子作者查询实体。
  */
 @Data
-public class PostAuthorEntity {
-
-    private Long id;
-
-    private String username;
-
-    private String avatar;
+@EqualsAndHashCode(callSuper = true)
+public class PostAuthorEntity extends AuthorInfo {
 }

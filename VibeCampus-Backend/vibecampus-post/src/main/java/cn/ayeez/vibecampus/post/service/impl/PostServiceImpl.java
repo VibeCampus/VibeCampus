@@ -1,5 +1,7 @@
 package cn.ayeez.vibecampus.post.service.impl;
 
+import cn.ayeez.vibecampus.common.dto.interaction.FavoriteToggleResponse;
+import cn.ayeez.vibecampus.common.dto.interaction.LikeToggleResponse;
 import cn.ayeez.vibecampus.post.dto.PostAuthorResponse;
 import cn.ayeez.vibecampus.post.dto.PostPageResponse;
 import cn.ayeez.vibecampus.post.dto.PostResponse;
@@ -131,7 +133,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostPageResponse getPosts(String category, Integer page, Integer pageSize) {
+    public PostPageResponse getPosts(String category, Integer page, Integer pageSize, Long currentUserId) {
         String normalizedCategory = normalizeAndValidateQueryCategory(category);
         boolean socialCategory = "social".equals(normalizedCategory);
         int safePage = normalizePage(page);
@@ -159,7 +161,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostResponse getPostDetail(Long postId) {
+    public PostResponse getPostDetail(Long postId, Long currentUserId) {
         if (postId == null || postId <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子ID非法");
         }
@@ -167,7 +169,98 @@ public class PostServiceImpl implements PostService {
         if (post == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
         }
-        return toPostResponse(post, postMapper.selectImageUrlsByPostId(postId), toAuthorResponse(post.getAuthorId()));
+        PostResponse response = toPostResponse(post, postMapper.selectImageUrlsByPostId(postId), toAuthorResponse(post.getAuthorId()));
+        // 填充点赞和收藏状态
+        if (currentUserId != null) {
+            int likeCount = postMapper.countPostLike(currentUserId, postId);
+            response.setLiked(likeCount > 0);
+            int favoriteCount = postMapper.countPostFavorite(currentUserId, postId);
+            response.setFavorited(favoriteCount > 0);
+        } else {
+            response.setLiked(false);
+            response.setFavorited(false);
+        }
+        return response;
+    }
+
+    @Override
+    public LikeToggleResponse togglePostLike(Long postId, Long currentUserId) {
+        if (currentUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+        }
+        if (postId == null || postId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子ID非法");
+        }
+        
+        // 检查帖子是否存在
+        PostEntity post = postMapper.selectVisiblePostById(postId);
+        if (post == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        
+        // 检查是否已点赞
+        int existingLike = postMapper.countPostLike(currentUserId, postId);
+        boolean liked;
+        
+        if (existingLike > 0) {
+            // 取消点赞
+            postMapper.deletePostLike(currentUserId, postId);
+            // 更新点赞数
+            postMapper.decrementLikeCount(postId);
+            liked = false;
+        } else {
+            // 添加点赞
+            postMapper.insertPostLike(currentUserId, postId);
+            // 更新点赞数
+            postMapper.incrementLikeCount(postId);
+            liked = true;
+        }
+        
+        // 获取最新点赞数
+        PostEntity updatedPost = postMapper.selectVisiblePostById(postId);
+        int likeCount = updatedPost != null && updatedPost.getLikeCount() != null ? updatedPost.getLikeCount() : 0;
+        
+        return new LikeToggleResponse(liked, likeCount);
+    }
+
+    @Override
+    public FavoriteToggleResponse togglePostFavorite(Long postId, Long currentUserId) {
+        if (currentUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+        }
+        if (postId == null || postId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子ID非法");
+        }
+        
+        // 检查帖子是否存在
+        PostEntity post = postMapper.selectVisiblePostById(postId);
+        if (post == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        
+        // 检查是否已收藏
+        int existingFavorite = postMapper.countPostFavorite(currentUserId, postId);
+        boolean favorited;
+        
+        if (existingFavorite > 0) {
+            // 取消收藏
+            postMapper.deletePostFavorite(currentUserId, postId);
+            // 更新收藏数
+            postMapper.decrementFavoriteCount(postId);
+            favorited = false;
+        } else {
+            // 添加收藏
+            postMapper.insertPostFavorite(currentUserId, postId);
+            // 更新收藏数
+            postMapper.incrementFavoriteCount(postId);
+            favorited = true;
+        }
+        
+        // 获取最新收藏数
+        PostEntity updatedPost = postMapper.selectVisiblePostById(postId);
+        int favoriteCount = updatedPost != null && updatedPost.getFavoriteCount() != null ? updatedPost.getFavoriteCount() : 0;
+        
+        return new FavoriteToggleResponse(favorited, favoriteCount);
     }
 
     private String normalizeAndValidateCategory(String category) {
@@ -443,10 +536,13 @@ public class PostServiceImpl implements PostService {
                 anonymous,
                 anonymous ? null : post.getAuthorId(),
                 anonymous ? null : authorResponse,
-                images == null ? Collections.emptyList() : images,
+                images != null ? images : Collections.emptyList(),
                 post.getCreatedAt() == null ? null : post.getCreatedAt().toString(),
                 post.getLikeCount() == null ? 0 : post.getLikeCount(),
-                post.getCommentCount() == null ? 0 : post.getCommentCount()
+                post.getCommentCount() == null ? 0 : post.getCommentCount(),
+                post.getFavoriteCount() == null ? 0 : post.getFavoriteCount(),
+                null, // liked 状态由调用方填充
+                null  // favorited 状态由调用方填充
         );
     }
 
@@ -470,7 +566,11 @@ public class PostServiceImpl implements PostService {
         if (authorEntity == null) {
             return null;
         }
-        return new PostAuthorResponse(authorEntity.getId(), authorEntity.getUsername(), authorEntity.getAvatar());
+        PostAuthorResponse response = new PostAuthorResponse();
+        response.setId(authorEntity.getId());
+        response.setUsername(authorEntity.getUsername());
+        response.setAvatar(authorEntity.getAvatar());
+        return response;
     }
 
     private Map<Long, PostAuthorResponse> buildAuthorMap(List<PostEntity> posts) {
@@ -489,10 +589,11 @@ public class PostServiceImpl implements PostService {
         List<PostAuthorEntity> authorEntities = postMapper.selectAuthorsByIds(new ArrayList<>(authorIds));
         Map<Long, PostAuthorResponse> authorMap = new HashMap<>();
         for (PostAuthorEntity authorEntity : authorEntities) {
-            authorMap.put(
-                    authorEntity.getId(),
-                    new PostAuthorResponse(authorEntity.getId(), authorEntity.getUsername(), authorEntity.getAvatar())
-            );
+            PostAuthorResponse response = new PostAuthorResponse();
+            response.setId(authorEntity.getId());
+            response.setUsername(authorEntity.getUsername());
+            response.setAvatar(authorEntity.getAvatar());
+            authorMap.put(authorEntity.getId(), response);
         }
         return authorMap;
     }
@@ -506,6 +607,126 @@ public class PostServiceImpl implements PostService {
                 log.warn("回滚时删除文件失败，path={}", path, e);
             }
         }
+    }
+
+    @Override
+    public List<PostResponse> getHotPosts(Integer limit, Long currentUserId) {
+        int safeLimit = (limit == null || limit <= 0) ? 10 : Math.min(limit, 50);
+        List<PostEntity> posts = postMapper.selectHotPosts(safeLimit);
+        if (posts == null || posts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        List<Long> postIds = posts.stream().map(PostEntity::getId).toList();
+        Map<Long, List<String>> imageMap = buildImageMap(postIds);
+        Map<Long, PostAuthorResponse> authorMap = buildAuthorMap(posts);
+        
+        List<PostResponse> list = new ArrayList<>(posts.size());
+        for (PostEntity post : posts) {
+            PostResponse response = toPostResponse(
+                    post,
+                    imageMap.getOrDefault(post.getId(), Collections.emptyList()),
+                    authorMap.get(post.getAuthorId())
+            );
+            // 填充点赞和收藏状态
+            if (currentUserId != null) {
+                int likeCount = postMapper.countPostLike(currentUserId, post.getId());
+                response.setLiked(likeCount > 0);
+                int favoriteCount = postMapper.countPostFavorite(currentUserId, post.getId());
+                response.setFavorited(favoriteCount > 0);
+            } else {
+                response.setLiked(false);
+                response.setFavorited(false);
+            }
+            list.add(response);
+        }
+        return list;
+    }
+
+    @Override
+    public void deletePost(Long postId, Long currentUserId) {
+        if (currentUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+        }
+        if (postId == null || postId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "帖子ID非法");
+        }
+        
+        // 检查帖子是否存在且属于当前用户
+        PostEntity post = postMapper.selectPostById(postId);
+        if (post == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在");
+        }
+        if (!post.getAuthorId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权删除此帖子");
+        }
+        
+        // 软删除：更新状态为已删除
+        int rows = postMapper.softDeletePost(postId, currentUserId);
+        if (rows == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "帖子不存在或无权删除");
+        }
+    }
+
+    @Override
+    public PostPageResponse searchPosts(String keyword, String sort, Integer page, Integer pageSize, Long currentUserId) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜索关键词不能为空");
+        }
+        
+        String normalizedSort = normalizeSort(sort);
+        int safePage = normalizePage(page);
+        int safePageSize = normalizePageSize(pageSize);
+        int offset = (safePage - 1) * safePageSize;
+        
+        // 搜索帖子
+        long total = postMapper.countSearchResults(keyword.trim());
+        if (total == 0) {
+            return new PostPageResponse(Collections.emptyList(), 0L, safePage, safePageSize);
+        }
+        
+        List<PostEntity> posts = postMapper.searchPosts(keyword.trim(), normalizedSort, offset, safePageSize);
+        List<Long> postIds = posts.stream().map(PostEntity::getId).toList();
+        Map<Long, List<String>> imageMap = buildImageMap(postIds);
+        Map<Long, PostAuthorResponse> authorMap = buildAuthorMap(posts);
+        
+        List<PostResponse> list = new ArrayList<>(posts.size());
+        for (PostEntity post : posts) {
+            PostResponse response = toPostResponse(
+                    post,
+                    imageMap.getOrDefault(post.getId(), Collections.emptyList()),
+                    authorMap.get(post.getAuthorId())
+            );
+            // 填充点赞和收藏状态
+            if (currentUserId != null) {
+                int likeCount = postMapper.countPostLike(currentUserId, post.getId());
+                response.setLiked(likeCount > 0);
+                int favoriteCount = postMapper.countPostFavorite(currentUserId, post.getId());
+                response.setFavorited(favoriteCount > 0);
+            } else {
+                response.setLiked(false);
+                response.setFavorited(false);
+            }
+            list.add(response);
+        }
+        return new PostPageResponse(list, total, safePage, safePageSize);
+    }
+
+    /**
+     * 规范化排序参数。
+     *
+     * @param sort 排序方式
+     * @return 规范化后的排序方式（latest、likes、comments）
+     */
+    private String normalizeSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return "latest";
+        }
+        String normalized = sort.trim().toLowerCase();
+        if ("likes".equals(normalized) || "comments".equals(normalized)) {
+            return normalized;
+        }
+        return "latest";
     }
 
     /**

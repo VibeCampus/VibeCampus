@@ -36,5 +36,9 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>cn.ayeez</groupId>
+            <artifactId>vibecampus-comment</artifactId>
+        </dependency>
     </dependencies>
 </project>
