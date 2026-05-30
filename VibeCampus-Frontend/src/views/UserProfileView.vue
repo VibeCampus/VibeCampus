@@ -142,6 +142,17 @@ async function changePwd() {
 async function handleAvatarChange(event) {
   const file = event.target.files?.[0]
   if (!file || !isSelf.value) return
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  if (!allowed.includes(file.type)) {
+    profileMsg.value = '头像格式仅支持 JPEG / PNG / WEBP / GIF'
+    event.target.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    profileMsg.value = '头像大小不能超过 5MB'
+    event.target.value = ''
+    return
+  }
   try {
     const formData = new FormData()
     formData.append('avatar', file)
@@ -316,6 +327,7 @@ function userCardStats(userId) {
                   >
                     <option value="男">男</option>
                     <option value="女">女</option>
+                    <option value="其他">其他</option>
                     <option value="保密">保密</option>
                   </select>
                 </div>
