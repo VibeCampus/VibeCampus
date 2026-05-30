@@ -37,3 +37,6 @@ Thumbs.db
 
 # ----- 本地上传文件（运行时生成，不入库）-----
 uploads/
+
+# ----- 本地 Issue 草稿（用于手动复制到 GitHub，不会自动生成 Issue）-----
+docs/issues/

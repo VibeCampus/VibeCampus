@@ -94,10 +94,9 @@ public class PostServiceImpl implements PostService {
 
             int postType = resolvePostType(safeImages, video);
             Long currentUserId = PostCurrentUserContext.getCurrentUserId();
-            Long authorId = anonymousFlag ? null : currentUserId;
 
             PostEntity postEntity = new PostEntity();
-            postEntity.setAuthorId(authorId);
+            postEntity.setAuthorId(currentUserId);
             postEntity.setCategorySlug(normalizedCategory);
             postEntity.setContent(normalizedContent);
             postEntity.setPostType(postType);
@@ -122,18 +121,7 @@ public class PostServiceImpl implements PostService {
             if (imageUrls.isEmpty()) {
                 imageUrls = postMapper.selectImageUrlsByPostId(postEntity.getId());
             }
-            return new PostResponse(
-                    createdPost.getId(),
-                    createdPost.getCategorySlug(),
-                    createdPost.getContent(),
-                    createdPost.getAnonymous() != null && createdPost.getAnonymous() == 1,
-                    createdPost.getAuthorId(),
-                    toAuthorResponse(createdPost.getAuthorId()),
-                    imageUrls,
-                    createdPost.getCreatedAt() == null ? null : createdPost.getCreatedAt().toString(),
-                    createdPost.getLikeCount() == null ? 0 : createdPost.getLikeCount(),
-                    createdPost.getCommentCount() == null ? 0 : createdPost.getCommentCount()
-            );
+            return toPostResponse(createdPost, imageUrls, toAuthorResponse(createdPost.getAuthorId()));
         }
         catch (RuntimeException ex) {
             // 业务执行期异常时可立即清理；事务回调中的删除为幂等兜底。
@@ -447,13 +435,14 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostResponse toPostResponse(PostEntity post, List<String> images, PostAuthorResponse authorResponse) {
+        boolean anonymous = post.getAnonymous() != null && post.getAnonymous() == 1;
         return new PostResponse(
                 post.getId(),
                 post.getCategorySlug(),
                 post.getContent(),
-                post.getAnonymous() != null && post.getAnonymous() == 1,
-                post.getAuthorId(),
-                authorResponse,
+                anonymous,
+                anonymous ? null : post.getAuthorId(),
+                anonymous ? null : authorResponse,
                 images == null ? Collections.emptyList() : images,
                 post.getCreatedAt() == null ? null : post.getCreatedAt().toString(),
                 post.getLikeCount() == null ? 0 : post.getLikeCount(),
