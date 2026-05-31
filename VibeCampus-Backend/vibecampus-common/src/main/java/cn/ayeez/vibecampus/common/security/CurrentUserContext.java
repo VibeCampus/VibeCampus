@@ -1,28 +1,31 @@
-package cn.ayeez.vibecampus.user.util;
+package cn.ayeez.vibecampus.common.security;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 
 /**
- * 当前用户上下文工具类：从请求属性中提取由 JWT 认证过滤器注入的用户ID。
+ * 当前用户上下文工具类：从请求属性中提取由 JWT 认证过滤器注入的用户 ID。
  */
-public class CurrentUserContext {
+public final class CurrentUserContext {
 
     private static final String CURRENT_USER_ID_ATTR = "currentUserId";
 
+    private CurrentUserContext() {
+    }
+
     /**
-     * 获取当前登录用户ID
+     * 获取当前登录用户 ID。
      *
-     * @return 用户ID
-     * @throws ResponseStatusException 如果未登录或token无效
+     * @return 用户 ID
+     * @throws ResponseStatusException 如果未登录或 token 无效
      */
     public static Long getCurrentUserId() {
-        ServletRequestAttributes attributes = 
-            (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        
+        ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+
         if (attributes == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "无法获取请求上下文");
         }
@@ -38,9 +41,9 @@ public class CurrentUserContext {
     }
 
     /**
-     * 获取当前登录用户ID（可选，允许为null）
+     * 获取当前登录用户 ID，可选，允许未登录。
      *
-     * @return 用户ID，未登录时返回null
+     * @return 用户 ID，未登录时返回 null
      */
     public static Long getCurrentUserIdOptional() {
         try {
