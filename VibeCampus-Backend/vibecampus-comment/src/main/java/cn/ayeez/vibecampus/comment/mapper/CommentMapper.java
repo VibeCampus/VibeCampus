@@ -119,4 +119,19 @@ public interface CommentMapper {
             where id = #{commentId}
             """)
     CommentEntity selectByIdIncludeDeleted(@Param("commentId") Long commentId);
+
+    @Select("""
+            select count(1) from comments
+            where author_id = #{userId} and deleted_at is null
+            """)
+    long countUserComments(@Param("userId") Long userId);
+
+    @Select("""
+            select id,post_id,like_count,content,created_at from comments
+            where author_id = #{userId} and deleted_at is null
+            limit #{limit} offset #{offset}
+            """)
+    List<CommentEntity> selectUserComments(@Param("userId")Long userId,
+                                           @Param("offset") int offset,
+                                           @Param("limit") int pageSize);
 }

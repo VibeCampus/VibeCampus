@@ -395,4 +395,88 @@ public interface PostMapper {
             </script>
             """)
     long countSearchResults(@Param("keyword") String keyword);
+
+    /**
+     * 统计用户帖子数量
+     */
+    @Select("""
+            <script>
+            select count(*) from posts
+            where deleted_at is null
+            and author_id = #{userId}
+            <if test = "hideAnonymous">
+                and anonymous = 0
+            </if>
+            </script>
+            """)
+    long countUserPosts(@Param("userId") Long userId, @Param("hideAnonymous") boolean hideAnonymous);
+
+    /**
+     * 分页查询用户发布的帖子。
+     */
+    @Select("""
+            <script>
+            select id,author_id,category_slug,content,post_type,status,anonymous,
+                   like_count,comment_count,favorite_count,created_at
+            from posts
+            where deleted_at is null
+            and author_id = #{userId}
+            <if test = "hideAnonymous">
+                and anonymous = 0
+            </if>
+            order by created_at desc,id desc
+            limit #{limit} offset #{offset}
+            </script>
+            """)
+    List<PostEntity> selectUserPosts(@Param("userId") Long userId,
+                                     @Param("offset") int offset,
+                                     @Param("limit") int limit,
+                                     @Param("hideAnonymous") boolean hideAnonymous);
+
+    /**
+     * 批量查询帖子内容（仅 id 和 content 列），供评论列表关联时使用。
+     */
+    @Select("""
+        <script>
+        select id, content
+        from posts
+        where id in
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        </script>
+        """)
+    List<PostEntity> selectPostByIds(@Param("postIds") List<Long> postIds);
+
+    /**
+     * 统计用户收藏的帖子数量。
+     */
+    @Select("""
+            select count(*)
+            from post_favorites f
+            join posts p on p.id = f.post_id
+            where f.user_id = #{userId}
+              and p.deleted_at is null
+            """)
+    long countMyFavorite(@Param("userId") Long userId);
+
+    /**
+     * 分页查询用户收藏的帖子。
+     */
+    @Select("""
+            <script>
+            select p.id, p.author_id, p.category_slug, p.content, p.post_type,
+                   p.status, p.anonymous, p.like_count, p.comment_count,
+                   p.favorite_count, p.created_at
+            from post_favorites f
+            join posts p on p.id = f.post_id
+            where f.user_id = #{userId}
+              and p.deleted_at is null
+            order by f.created_at desc
+            limit #{limit} offset #{offset}
+            </script>
+            """)
+    List<PostEntity> selectMyFavorites(@Param("userId") Long userId,
+                                       @Param("offset") int offset,
+                                       @Param("limit") int limit);
 }

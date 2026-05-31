@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -21,10 +20,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+
 
 /**
  * 用户信息查询控制器（统一接口）
@@ -33,7 +30,7 @@ import java.util.UUID;
  *   <li>查看自己：返回完整信息（包括邮箱、手机号等敏感字段）</li>
  *   <li>查看他人：仅返回公开信息（昵称、用户名、ID等）</li>
  * </ul>
- * 
+ *
  * <h3>支持的路径：</h3>
  * <ul>
  *   <li>GET /api/user/me - 查看当前登录用户信息</li>
@@ -195,6 +192,162 @@ public class UserController {
         // 返回用户详细信息，包含isCurrentUser标识
         return ResponseEntity.ok(userDetail);
     }
+
+    /**
+     * 查询当前用户发布过的帖子。
+     * <p>路径：GET /api/user/me/posts</p>
+     *
+     * @param page     页码，从 1 开始，默认为 1
+     * @param pageSize 每页条数，默认 20，最大 100
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户
+     * @return 分页帖子列表
+     */
+    @GetMapping("/user/me/posts")
+    public ResponseEntity<?> getMyPosts(@RequestParam(value = "page",defaultValue = "1")Integer page,
+                                         @RequestParam(value = "pageSize",defaultValue = "20")Integer pageSize,
+                                         HttpServletRequest httpServletRequest){
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+
+        return ResponseEntity.ok(userService.getPostsByUserId(currentUserId,currentUserId,page,pageSize));
+    }
+
+    /**
+     * 查询当前用户发表过的评论。
+     * <p>路径：GET /api/user/me/comments</p>
+     *
+     * @param page     页码，从 1 开始，默认为 1
+     * @param pageSize 每页条数，默认 20，最大 100
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户
+     * @return 分页评论列表（含关联帖子标题）
+     */
+    @GetMapping("/user/me/comments")
+    public ResponseEntity<?> getMyComments(@RequestParam(value = "page",defaultValue = "1")Integer page,
+                                            @RequestParam(value = "pageSize",defaultValue = "20")Integer pageSize,
+                                            HttpServletRequest httpServletRequest){
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+
+        return ResponseEntity.ok(userService.getCommentsByUserId(currentUserId,page,pageSize));
+    }
+
+
+    /**
+     * 查询当前用户收藏过的帖子。
+     * <p>路径：GET /api/user/me/favorites</p>
+     *
+     * @param page     页码，从 1 开始，默认为 1
+     * @param pageSize 每页条数，默认 20，最大 100
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户
+     * @return 分页收藏帖子列表
+     */
+    @GetMapping("/user/me/favorites")
+    public ResponseEntity<?> getMyFavorites(@RequestParam(value = "page",defaultValue = "1")Integer page,
+                                             @RequestParam(value = "pageSize",defaultValue = "20")Integer pageSize,
+                                             HttpServletRequest httpServletRequest){
+
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+
+
+
+        return ResponseEntity.ok(userService.getMyFavorite(currentUserId,page,pageSize));
+    }
+
+    /**
+     * 查询指定用户发布的帖子。
+     * <p>路径：GET /api/users/{id}/posts</p>
+     * <p>匿名帖仅在查看自己时可见，他人查看时自动过滤。</p>
+     *
+     * @param id       目标用户 ID
+     * @param page     页码，从 1 开始，默认为 1
+     * @param pageSize 每页条数，默认 20，最大 100
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户
+     * @return 分页帖子列表
+     */
+    @GetMapping("/users/{id}/posts")
+    public ResponseEntity<?> getUserPosts(@PathVariable("id")Long id,
+                                           @RequestParam(value = "page",defaultValue = "1")Integer page,
+                                           @RequestParam(value = "pageSize",defaultValue = "20")Integer pageSize,
+                                           HttpServletRequest httpServletRequest){
+
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+
+        return ResponseEntity.ok(userService.getPostsByUserId(currentUserId,id,page,pageSize));
+    }
+
+    /**
+     * 查询指定用户发表过的评论。
+     * <p>路径：GET /api/users/{id}/comments</p>
+     *
+     * @param id       目标用户 ID
+     * @param page     页码，从 1 开始，默认为 1
+     * @param pageSize 每页条数，默认 20，最大 100
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户
+     * @return 分页评论列表（含关联帖子标题）
+     */
+    @GetMapping("/users/{id}/comments")
+    public ResponseEntity<?> getUserComments(@PathVariable("id")Long id,
+                                              @RequestParam(value = "page",defaultValue = "1")Integer page,
+                                              @RequestParam(value = "pageSize",defaultValue = "20")Integer pageSize,
+                                             HttpServletRequest httpServletRequest){
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+
+        return ResponseEntity.ok(userService.getCommentsByUserId(id,page,pageSize));
+    }
+
+    /**
+     * 注销当前用户账号（软删除）。
+     * <p>路径：DELETE /api/user/me</p>
+     * <p>注销后用户不可再登录，个人资料不可访问，历史内容保留但作者信息隐藏。</p>
+     *
+     * @param httpServletRequest HTTP 请求，用于获取当前登录用户及 Token
+     * @return 注销结果
+     */
+    @DeleteMapping("/user/me")
+    public ResponseEntity<?> deleteAccount(HttpServletRequest httpServletRequest){
+
+        Long currentUserId = (Long)httpServletRequest.getAttribute("currentUserId");
+
+        if(currentUserId == null || currentUserId <= 0){
+            HashMap<String, Object> error = new HashMap<>();
+            error.put("message","未登录或无效的会话");
+            return ResponseEntity.status(401).body(error);
+        }
+        String authHeader = httpServletRequest.getHeader("Authorization");
+        userService.deleteAccount(currentUserId,authHeader);
+
+        return ResponseEntity.ok(Map.of("deleted",true));
+    }
+
+
 
     private String saveAvatar(MultipartFile avatar) {
         if (avatar == null || avatar.isEmpty()) {

@@ -106,4 +106,9 @@ public interface UserMapper {
             where id = #{userId} and deleted_at is null
             """)
     int updatePassword(@Param("userId") Long userId, @Param("passwordHash") String passwordHash);
+
+    @Update("""
+            update users set deleted_at = now() where id = #{userId} and deleted_at is null
+            """)
+    int deleteCount(@Param("userId")Long currentUserId);
 }

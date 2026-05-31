@@ -59,5 +59,13 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>cn.ayeez</groupId>
+            <artifactId>vibecampus-post</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.ayeez</groupId>
+            <artifactId>vibecampus-comment</artifactId>
+        </dependency>
     </dependencies>
 </project>
