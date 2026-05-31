@@ -110,5 +110,5 @@ public interface UserMapper {
     @Update("""
             update users set deleted_at = now() where id = #{userId} and deleted_at is null
             """)
-    int deleteCount(@Param("userId")Long currentUserId);
+    int softDeleteById(@Param("userId")Long currentUserId);
 }

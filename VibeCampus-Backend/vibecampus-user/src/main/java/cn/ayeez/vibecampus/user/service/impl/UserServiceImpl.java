@@ -218,7 +218,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteAccount(Long currentUserId, String authHeader) {
 
-        userMapper.deleteCount(currentUserId);
+        userMapper.softDeleteById(currentUserId);
         jwtTokenService.revokeAccessToken(authHeader);
 
     }
