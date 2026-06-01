@@ -49,4 +49,7 @@ public class CommentResponse {
     /** 二级回复列表（嵌套的回复） */
     private List<CommentReplyResponse> replies;
 
+    /** 关联帖子标题（个人主页评论列表场景使用） */
+    private String postTitle;
+
 }
