@@ -4,9 +4,13 @@ import { normalizePost, parseListPayload } from './normalize'
 /**
  * 帖子模块 API
  *
- * 后端只暴露了 GET /api/posts、GET /api/posts/{id}、POST /api/posts（multipart）。
- * 帖子级的点赞/收藏接口尚未在 PostController 中暴露（mapper 已具备能力），
- * 因此这里暂时不提供 toggleLike / toggleFavorite 调用，UI 侧采用乐观更新即可。
+ * 后端 PostController 暴露：
+ *  - GET    /api/posts
+ *  - GET    /api/posts/{id}
+ *  - POST   /api/posts (multipart)
+ *  - POST   /api/posts/{id}/like      切换点赞
+ *  - POST   /api/posts/{id}/favorite  切换收藏
+ *  - DELETE /api/posts/{id}           软删除（仅作者本人）
  */
 const postApi = {
   /**
@@ -58,6 +62,29 @@ const postApi = {
       formData.append('video', body.video)
     }
     return http.post('/posts', formData).then(res => normalizePost(res) || res)
+  },
+
+  /**
+   * POST /api/posts/{id}/like
+   * Response: { liked, likeCount }
+   */
+  toggleLike(id) {
+    return http.post(`/posts/${id}/like`)
+  },
+
+  /**
+   * POST /api/posts/{id}/favorite
+   * Response: { favorited, favoriteCount }
+   */
+  toggleFavorite(id) {
+    return http.post(`/posts/${id}/favorite`)
+  },
+
+  /**
+   * DELETE /api/posts/{id}
+   */
+  remove(id) {
+    return http.delete(`/posts/${id}`)
   },
 }
 

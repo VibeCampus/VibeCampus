@@ -31,7 +31,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function updateUserInfo(patch) {
-    userInfo.value = { ...(userInfo.value || {}), ...patch }
+    userInfo.value = { ...userInfo.value, ...patch }
     localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
   }
 

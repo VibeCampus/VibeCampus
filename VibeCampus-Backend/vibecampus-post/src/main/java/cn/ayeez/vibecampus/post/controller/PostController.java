@@ -1,12 +1,16 @@
 package cn.ayeez.vibecampus.post.controller;
 
+import cn.ayeez.vibecampus.common.dto.interaction.FavoriteToggleResponse;
+import cn.ayeez.vibecampus.common.dto.interaction.LikeToggleResponse;
 import cn.ayeez.vibecampus.post.dto.PostPageResponse;
 import cn.ayeez.vibecampus.post.dto.PostResponse;
 import cn.ayeez.vibecampus.post.service.PostService;
 import cn.ayeez.vibecampus.post.util.PostCurrentUserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 帖子接口控制器。
@@ -78,5 +83,40 @@ public class PostController {
         log.info("收到发帖请求，category={}, imageCount={}, hasVideo={}",
                 category, images == null ? 0 : images.length, video != null && !video.isEmpty());
         return postService.createPost(category, content, anonymous, images, video);
+    }
+
+    /**
+     * 切换帖子点赞状态。
+     */
+    @PostMapping("/{id}/like")
+    public LikeToggleResponse toggleLike(@PathVariable("id") Long postId) {
+        Long currentUserId = requireCurrentUserId();
+        return postService.togglePostLike(postId, currentUserId);
+    }
+
+    /**
+     * 切换帖子收藏状态。
+     */
+    @PostMapping("/{id}/favorite")
+    public FavoriteToggleResponse toggleFavorite(@PathVariable("id") Long postId) {
+        Long currentUserId = requireCurrentUserId();
+        return postService.togglePostFavorite(postId, currentUserId);
+    }
+
+    /**
+     * 软删除帖子（仅作者本人）。
+     */
+    @DeleteMapping("/{id}")
+    public void deletePost(@PathVariable("id") Long postId) {
+        Long currentUserId = requireCurrentUserId();
+        postService.deletePost(postId, currentUserId);
+    }
+
+    private Long requireCurrentUserId() {
+        Long currentUserId = PostCurrentUserContext.getCurrentUserIdOrNull();
+        if (currentUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+        }
+        return currentUserId;
     }
 }

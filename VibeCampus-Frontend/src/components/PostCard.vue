@@ -1,17 +1,21 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
 import UserAvatar from '@/components/UserAvatar.vue'
+import postApi from '@/api/post'
 
 const props = defineProps({
   post: { type: Object, required: true },
 })
 
 const router = useRouter()
+const userStore = useUserStore()
 const socialStore = useSocialStore()
 const liked = ref(!!props.post.liked)
 const localLikes = ref(props.post.likes || 0)
+const likePending = ref(false)
 
 watch(
   () => [props.post.liked, props.post.likes],
@@ -43,15 +47,34 @@ function goDetail() {
   router.push(`/c/${props.post.id}`)
 }
 
-function toggleLike(e) {
+async function toggleLike(e) {
   e.stopPropagation()
-  // 乐观更新：后端暂未提供 POST /api/posts/{id}/like，先做本地切换
-  if (liked.value) {
-    liked.value = false
-    localLikes.value = Math.max(0, localLikes.value - 1)
-  } else {
-    liked.value = true
-    localLikes.value += 1
+  if (likePending.value) return
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/userlogin', query: { redirect: router.currentRoute.value.fullPath } })
+    return
+  }
+  if (!props.post?.id) return
+  const prevLiked = liked.value
+  const prevCount = localLikes.value
+  liked.value = !prevLiked
+  localLikes.value = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+  likePending.value = true
+  try {
+    const res = await postApi.toggleLike(props.post.id)
+    liked.value = !!res?.liked
+    if (typeof res?.likeCount === 'number') localLikes.value = res.likeCount
+    socialStore.upsertPostFromServer({
+      ...props.post,
+      liked: liked.value,
+      likes: localLikes.value,
+      likeCount: localLikes.value,
+    })
+  } catch {
+    liked.value = prevLiked
+    localLikes.value = prevCount
+  } finally {
+    likePending.value = false
   }
 }
 

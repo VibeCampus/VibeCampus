@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { unwrapBody } from './unwrap'
+import { toast } from '@/composables/useToast'
 
 /**
  * axios 实例
@@ -112,23 +113,43 @@ http.interceptors.response.use(
       return Promise.reject(new Error(msg))
     }
 
-    if (status === 403) {
-      console.warn('权限不足：', msg)
-    }
+    // silentToast: 调用方传入 { silentToast: true } 可禁用全局提示，组件级处理
+    const silent = error.config?.silentToast === true
+    const requestPath = getRequestPath(error.config)
+    const isAdmin = requestPath.startsWith('/admin/') || requestPath === '/admin'
 
-    if (status === 404) {
-      console.warn('资源不存在：', error.config?.url)
+    if (status === 403) {
+      if (!silent) toast.error(msg || '权限不足')
+    } else if (status === 404) {
+      // 管理后台许多接口尚未实现，避免一次操作刷出多条 404 toast：仅提示一次。
+      if (!silent && !isAdmin) toast.error(msg || '资源不存在')
+      else if (isAdmin) warnAdminUnimplementedOnce()
+    } else if (status === 400) {
+      if (!silent) toast.error(msg || '请求参数有误')
+    } else if (status >= 500) {
+      if (!silent) toast.error(msg || '服务暂时不可用')
+    } else if (!status) {
+      // 网络层错误（无 status）
+      if (!silent) toast.error(msg || '网络异常，请检查连接')
     }
 
     return Promise.reject(new Error(msg))
   },
 )
 
+let adminWarned = false
+function warnAdminUnimplementedOnce() {
+  if (adminWarned) return
+  adminWarned = true
+  toast.info('管理后台部分功能尚未上线')
+}
+
 export { http }
 export { default as authApi } from './auth'
 export { default as postApi } from './post'
 export { default as commentApi } from './comment'
 export { default as userApi } from './user'
+export { default as followApi } from './follow'
 export { default as messageApi } from './message'
 export { default as adminApi } from './admin'
 export { default as pingApi } from './ping'

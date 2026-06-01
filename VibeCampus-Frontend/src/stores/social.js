@@ -2,6 +2,8 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useUserStore } from './user'
 import { normalizePost, normalizeUser, parseListPayload } from '@/api/normalize'
+import userApi from '@/api/user'
+import followApi from '@/api/follow'
 
 const mockUsers = [
   {
@@ -456,6 +458,137 @@ export const useSocialStore = defineStore('social', () => {
     return !exists
   }
 
+  // ── 与后端同步的状态：用户主页相关 ──────────────────────────────
+  const userStatsMap = ref({})
+  const userPostsMap = ref({})
+  const userCommentsMap = ref({})
+  const myFavoritesList = ref([])
+  const followingListMap = ref({})
+  const followerListMap = ref({})
+
+  function setUserStatsFromDetail(userDetail) {
+    const u = normalizeUser(userDetail)
+    if (!u?.id) return
+    const id = normalizeId(u.id)
+    userStatsMap.value = {
+      ...userStatsMap.value,
+      [id]: {
+        postCount: u.postCount ?? 0,
+        followingCount: u.followingCount ?? 0,
+        followerCount: u.followerCount ?? 0,
+        favoriteCount: u.favoriteCount ?? 0,
+        following: u.following ?? null,
+      },
+    }
+  }
+
+  function getServerUserStats(userId) {
+    return userStatsMap.value[normalizeId(userId)] || null
+  }
+
+  function isFollowingFromServer(userId) {
+    return getServerUserStats(userId)?.following === true
+  }
+
+  async function loadUserPosts(userId, params = {}) {
+    const id = normalizeId(userId)
+    const isMe = id === currentUserId.value
+    const page = isMe
+      ? await userApi.getMyPosts(params)
+      : await userApi.getUserPosts(id, params)
+    const list = page.list.map(p => {
+      if (p.author) upsertUser(p.author)
+      return p
+    })
+    userPostsMap.value = { ...userPostsMap.value, [id]: list }
+    return page
+  }
+
+  async function loadUserComments(userId, params = {}) {
+    const id = normalizeId(userId)
+    const isMe = id === currentUserId.value
+    const page = isMe
+      ? await userApi.getMyComments(params)
+      : await userApi.getUserComments(id, params)
+    userCommentsMap.value = { ...userCommentsMap.value, [id]: page.list }
+    return page
+  }
+
+  async function loadMyFavorites(params = {}) {
+    const page = await userApi.getMyFavorites(params)
+    page.list.forEach(p => p.author && upsertUser(p.author))
+    myFavoritesList.value = page.list
+    return page
+  }
+
+  async function loadFollowingList(userId, params = {}) {
+    const id = normalizeId(userId)
+    const page = await followApi.getFollowingList(id, params)
+    page.list.forEach(u => upsertUser(u))
+    followingListMap.value = { ...followingListMap.value, [id]: page.list }
+    return page
+  }
+
+  async function loadFollowerList(userId, params = {}) {
+    const id = normalizeId(userId)
+    const page = await followApi.getFollowerList(id, params)
+    page.list.forEach(u => upsertUser(u))
+    followerListMap.value = { ...followerListMap.value, [id]: page.list }
+    return page
+  }
+
+  function getUserPostsFromServer(userId) {
+    return userPostsMap.value[normalizeId(userId)] || []
+  }
+
+  function getUserCommentsFromServer(userId) {
+    return userCommentsMap.value[normalizeId(userId)] || []
+  }
+
+  function getFavoritePostsFromServer() {
+    return myFavoritesList.value
+  }
+
+  function getFollowingFromServer(userId) {
+    return followingListMap.value[normalizeId(userId)] || []
+  }
+
+  function getFollowerFromServer(userId) {
+    return followerListMap.value[normalizeId(userId)] || []
+  }
+
+  async function followUser(targetUserId) {
+    const targetId = normalizeId(targetUserId)
+    if (!targetId || targetId === currentUserId.value) return false
+    await followApi.follow(targetId)
+    const stats = userStatsMap.value[targetId]
+    userStatsMap.value = {
+      ...userStatsMap.value,
+      [targetId]: {
+        ...(stats || { postCount: 0, followingCount: 0, followerCount: 0, favoriteCount: 0 }),
+        followerCount: (stats?.followerCount ?? 0) + (stats?.following === true ? 0 : 1),
+        following: true,
+      },
+    }
+    return true
+  }
+
+  async function unfollowUser(targetUserId) {
+    const targetId = normalizeId(targetUserId)
+    if (!targetId || targetId === currentUserId.value) return false
+    await followApi.unfollow(targetId)
+    const stats = userStatsMap.value[targetId]
+    userStatsMap.value = {
+      ...userStatsMap.value,
+      [targetId]: {
+        ...(stats || { postCount: 0, followingCount: 0, followerCount: 0, favoriteCount: 0 }),
+        followerCount: Math.max(0, (stats?.followerCount ?? 0) - (stats?.following === true ? 1 : 0)),
+        following: false,
+      },
+    }
+    return true
+  }
+
   function addComment(postId, content) {
     const id = normalizeId(postId)
     const nextComment = {
@@ -540,5 +673,21 @@ export const useSocialStore = defineStore('social', () => {
     syncUserFromProfile,
     setFeedFromServer,
     upsertPostFromServer,
+    // server-driven 主页相关
+    setUserStatsFromDetail,
+    getServerUserStats,
+    isFollowingFromServer,
+    loadUserPosts,
+    loadUserComments,
+    loadMyFavorites,
+    loadFollowingList,
+    loadFollowerList,
+    getUserPostsFromServer,
+    getUserCommentsFromServer,
+    getFavoritePostsFromServer,
+    getFollowingFromServer,
+    getFollowerFromServer,
+    followUser,
+    unfollowUser,
   }
 })

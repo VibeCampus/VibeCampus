@@ -7,6 +7,7 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import postApi from '@/api/post'
 import commentApi from '@/api/comment'
 import { normalizeComment } from '@/api/normalize'
+import { toast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -92,24 +93,55 @@ async function loadComments() {
   }
 }
 
-function toggleLike() {
-  // 后端尚未暴露帖子点赞接口，先做本地乐观切换。
-  if (liked.value) {
-    liked.value = false
-    localLikes.value = Math.max(0, localLikes.value - 1)
-  } else {
-    liked.value = true
-    localLikes.value += 1
+async function toggleLike() {
+  if (!isLoggedIn.value) {
+    router.push({ path: '/userlogin', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!post.value?.id) return
+  const prevLiked = liked.value
+  const prevCount = localLikes.value
+  liked.value = !prevLiked
+  localLikes.value = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+  try {
+    const res = await postApi.toggleLike(post.value.id)
+    liked.value = !!res?.liked
+    if (typeof res?.likeCount === 'number') localLikes.value = res.likeCount
+    socialStore.upsertPostFromServer({
+      ...post.value,
+      liked: liked.value,
+      likes: localLikes.value,
+      likeCount: localLikes.value,
+    })
+  } catch {
+    liked.value = prevLiked
+    localLikes.value = prevCount
   }
 }
 
-function toggleSave() {
-  if (saved.value) {
-    saved.value = false
-    localFavorites.value = Math.max(0, localFavorites.value - 1)
-  } else {
-    saved.value = true
-    localFavorites.value += 1
+async function toggleSave() {
+  if (!isLoggedIn.value) {
+    router.push({ path: '/userlogin', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!post.value?.id) return
+  const prevSaved = saved.value
+  const prevCount = localFavorites.value
+  saved.value = !prevSaved
+  localFavorites.value = prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1
+  try {
+    const res = await postApi.toggleFavorite(post.value.id)
+    saved.value = !!res?.favorited
+    if (typeof res?.favoriteCount === 'number') localFavorites.value = res.favoriteCount
+    socialStore.upsertPostFromServer({
+      ...post.value,
+      favorited: saved.value,
+      favorites: localFavorites.value,
+      favoriteCount: localFavorites.value,
+    })
+  } catch {
+    saved.value = prevSaved
+    localFavorites.value = prevCount
   }
 }
 
@@ -183,6 +215,37 @@ function openReplyTo(comment, reply = null) {
     replyToUserId: reply?.author?.id || null,
   }
   replyContent.value = ''
+}
+
+function canDelete(target) {
+  const authorId = target?.author?.id
+  const myId = currentUser.value?.id
+  return !!authorId && !!myId && authorId === myId
+}
+
+async function deleteComment(comment) {
+  if (!comment?.id) return
+  if (typeof window !== 'undefined' && !window.confirm('确定删除这条评论？')) return
+  try {
+    await commentApi.remove(comment.id)
+    const idx = comments.value.findIndex(c => c.id === comment.id)
+    if (idx >= 0) comments.value.splice(idx, 1)
+    toast.success('评论已删除')
+  } catch (e) {
+    commentError.value = e?.message || '删除失败'
+  }
+}
+
+async function deleteReply(parent, reply) {
+  if (!reply?.id || !parent) return
+  if (typeof window !== 'undefined' && !window.confirm('确定删除这条回复？')) return
+  try {
+    await commentApi.remove(reply.id)
+    parent.replies = (parent.replies || []).filter(r => r.id !== reply.id)
+    toast.success('回复已删除')
+  } catch (e) {
+    commentError.value = e?.message || '删除失败'
+  }
 }
 </script>
 
@@ -366,6 +429,13 @@ function openReplyTo(comment, reply = null) {
                     >
                       回复
                     </button>
+                    <button
+                      v-if="canDelete(comment)"
+                      @click="deleteComment(comment)"
+                      class="hover:text-red-500 cursor-pointer transition-colors"
+                    >
+                      删除
+                    </button>
                   </div>
 
                   <div v-if="replyTarget?.commentId === comment.id" class="mt-3 flex gap-2">
@@ -402,13 +472,22 @@ function openReplyTo(comment, reply = null) {
                             <span class="text-[12px] text-[#8590A6]">· {{ reply.time }}</span>
                           </div>
                           <p class="text-[13px] text-[#1A1A1A] mt-0.5">{{ reply.content }}</p>
-                          <button
-                            v-if="isLoggedIn"
-                            @click="openReplyTo(comment, reply)"
-                            class="text-[12px] text-[#8590A6] hover:text-[#1772F6] mt-1 cursor-pointer transition-colors"
-                          >
-                            回复
-                          </button>
+                          <div class="flex items-center gap-3 mt-1">
+                            <button
+                              v-if="isLoggedIn"
+                              @click="openReplyTo(comment, reply)"
+                              class="text-[12px] text-[#8590A6] hover:text-[#1772F6] cursor-pointer transition-colors"
+                            >
+                              回复
+                            </button>
+                            <button
+                              v-if="canDelete(reply)"
+                              @click="deleteReply(comment, reply)"
+                              class="text-[12px] text-[#8590A6] hover:text-red-500 cursor-pointer transition-colors"
+                            >
+                              删除
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
+import ToastContainer from './components/ToastContainer.vue'
 import { useUserStore } from './stores/user'
 import { useSocialStore } from './stores/social'
 
@@ -33,5 +34,6 @@ onMounted(async () => {
   <div class="min-h-screen bg-[#F6F6F6]">
     <AppHeader v-if="showHeader" />
     <RouterView />
+    <ToastContainer />
   </div>
 </template>

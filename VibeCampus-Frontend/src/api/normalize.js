@@ -19,6 +19,11 @@ export function normalizeUser(u) {
     status: u.status,
     isCurrentUser: u.isCurrentUser,
     joinedAt: u.joinedAt ?? u.createdAt ?? u.createTime,
+    following: u.following ?? null,
+    followingCount: u.followingCount ?? 0,
+    followerCount: u.followerCount ?? 0,
+    postCount: u.postCount ?? 0,
+    favoriteCount: u.favoriteCount ?? 0,
   }
 }
 
@@ -65,6 +70,7 @@ export function normalizeComment(c) {
   return {
     id: c.id,
     postId: c.postId ?? null,
+    postTitle: c.postTitle ?? '',
     parentId: c.parentId ?? null,
     authorId: c.authorId ?? author?.id ?? null,
     author,
