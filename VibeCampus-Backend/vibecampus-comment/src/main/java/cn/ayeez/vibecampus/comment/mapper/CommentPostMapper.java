@@ -50,7 +50,7 @@ public interface CommentPostMapper {
      * @return 作者信息
      */
     @Select("""
-            select id, username, avatar
+            select id, username, avatar_url as avatar
             from users
             where id = #{authorId}
             """)
@@ -64,7 +64,7 @@ public interface CommentPostMapper {
      */
     @Select("""
             <script>
-            select id, username, avatar
+            select id, username, avatar_url as avatar
             from users
             where id in
             <foreach collection="authorIds" item="id" open="(" separator="," close=")">
