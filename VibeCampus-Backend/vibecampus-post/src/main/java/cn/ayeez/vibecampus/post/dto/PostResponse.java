@@ -36,4 +36,19 @@ public class PostResponse {
     private Integer likes;
 
     private Integer comments;
+
+    /**
+     * 收藏数
+     */
+    private Integer favorites;
+
+    /**
+     * 当前用户是否已点赞（未登录时为false）
+     */
+    private Boolean liked;
+
+    /**
+     * 当前用户是否已收藏（未登录时为false）
+     */
+    private Boolean favorited;
 }

@@ -19,6 +19,11 @@ export function normalizeUser(u) {
     status: u.status,
     isCurrentUser: u.isCurrentUser,
     joinedAt: u.joinedAt ?? u.createdAt ?? u.createTime,
+    following: u.following ?? null,
+    followingCount: u.followingCount ?? 0,
+    followerCount: u.followerCount ?? 0,
+    postCount: u.postCount ?? 0,
+    favoriteCount: u.favoriteCount ?? 0,
   }
 }
 
@@ -49,7 +54,33 @@ export function normalizePost(p) {
     likes: p.likes ?? p.likeCount ?? 0,
     comments: p.comments ?? p.commentCount ?? 0,
     favorites: p.favorites ?? p.favoriteCount ?? 0,
+    liked: !!(p.liked ?? p.isLiked),
+    favorited: !!(p.favorited ?? p.isFavorited),
     images: p.images ?? [],
+  }
+}
+
+/**
+ * 后端 CommentResponse / CommentReplyResponse 归一化。
+ */
+export function normalizeComment(c) {
+  if (!c || typeof c !== 'object') return null
+  const author = c.author ? normalizeUser(c.author) : null
+  const replyToUser = c.replyToUser ? normalizeUser(c.replyToUser) : null
+  return {
+    id: c.id,
+    postId: c.postId ?? null,
+    postTitle: c.postTitle ?? '',
+    parentId: c.parentId ?? null,
+    authorId: c.authorId ?? author?.id ?? null,
+    author,
+    replyToUserId: c.replyToUserId ?? null,
+    replyToUser,
+    content: c.content ?? '',
+    time: c.time ?? c.createdAt ?? c.createTime ?? '刚刚',
+    likes: c.likes ?? c.likeCount ?? 0,
+    liked: !!(c.liked ?? c.isLiked),
+    replies: Array.isArray(c.replies) ? c.replies.map(normalizeComment).filter(Boolean) : [],
   }
 }
 

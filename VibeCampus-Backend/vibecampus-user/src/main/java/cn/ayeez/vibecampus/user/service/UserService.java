@@ -1,7 +1,9 @@
 package cn.ayeez.vibecampus.user.service;
 
+import cn.ayeez.vibecampus.comment.dto.CommentPageResponse;
 import cn.ayeez.vibecampus.common.dto.UserDetailResponse;
 import cn.ayeez.vibecampus.common.dto.UserProfileUpdateRequest;
+import cn.ayeez.vibecampus.post.dto.PostPageResponse;
 import cn.ayeez.vibecampus.user.model.UserProfile;
 
 /**
@@ -9,22 +11,8 @@ import cn.ayeez.vibecampus.user.model.UserProfile;
  */
 public interface UserService {
 
-    /**
-     * 根据用户主键查询档案；无记录时返回 {@code null}，由调用方决定如何响应。
-     *
-     * @param userId 用户 ID
-     * @return 用户读模型，不存在则为 null
-     */
     UserProfile getCurrentUser(Long userId);
 
-    /**
-     * 查询用户详细信息
-     * 1. 查看自己的信息：返回完整信息
-     * 2. 查看他人信息：返回部分信息（隐藏敏感信息）
-     * targetUserI 目标用户ID
-     * currentUserId 当前用户ID
-     * return 用户详细信息响应对象，若不存在则返回null
-     */
     UserDetailResponse getUserDetail(Long targetUserId, Long currentUserId);
 
     UserDetailResponse updateCurrentUser(Long currentUserId, UserProfileUpdateRequest request);
@@ -32,4 +20,12 @@ public interface UserService {
     String updateAvatar(Long currentUserId, String avatarUrl);
 
     void changePassword(Long currentUserId, String oldPassword, String newPassword);
+
+    PostPageResponse getPostsByUserId(Long currentUserId, Long targetUserId, Integer page, Integer pageSize);
+
+    CommentPageResponse getCommentsByUserId(Long id, Integer page, Integer pageSize);
+
+    PostPageResponse getMyFavorite(Long currentUserId, Integer page, Integer pageSize);
+
+    void deleteAccount(Long currentUserId, String authHeader);
 }

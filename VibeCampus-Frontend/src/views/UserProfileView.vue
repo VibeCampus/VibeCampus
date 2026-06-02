@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
 import userApi from '@/api/user'
 import UserAvatar from '@/components/UserAvatar.vue'
+import { toast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,11 @@ const socialStore = useSocialStore()
 const activeTab = ref('profile')
 const profileMsg = ref('')
 const pwdMsg = ref('')
+const tabError = ref('')
+const tabLoading = ref(false)
+const followBusy = ref(false)
+const deletingAccount = ref(false)
+const showDeleteConfirm = ref(false)
 const avatarInput = ref(null)
 const loadingUser = ref(false)
 const loadError = ref('')
@@ -33,13 +39,14 @@ const categoryLabel = {
 const viewedUserId = computed(() => Number(route.params.id || socialStore.currentUserId))
 const viewedUser = computed(() => socialStore.findUserById(viewedUserId.value))
 const isSelf = computed(() => viewedUser.value?.id === socialStore.currentUserId)
-const stats = computed(() => socialStore.getUserStats(viewedUserId.value))
-const userPosts = computed(() => socialStore.getUserPosts(viewedUserId.value))
-const userComments = computed(() => socialStore.getUserComments(viewedUserId.value))
-const favoritePosts = computed(() => (isSelf.value ? socialStore.getFavoritePosts(viewedUserId.value) : []))
-const followingUsers = computed(() => socialStore.getFollowing(viewedUserId.value))
-const followerUsers = computed(() => socialStore.getFollowers(viewedUserId.value))
-const isFollowingUser = computed(() => !isSelf.value && socialStore.isFollowing(viewedUserId.value))
+const serverStats = computed(() => socialStore.getServerUserStats(viewedUserId.value))
+const stats = computed(() => serverStats.value || socialStore.getUserStats(viewedUserId.value))
+const userPosts = computed(() => socialStore.getUserPostsFromServer(viewedUserId.value))
+const userComments = computed(() => socialStore.getUserCommentsFromServer(viewedUserId.value))
+const favoritePosts = computed(() => (isSelf.value ? socialStore.getFavoritePostsFromServer() : []))
+const followingUsers = computed(() => socialStore.getFollowingFromServer(viewedUserId.value))
+const followerUsers = computed(() => socialStore.getFollowerFromServer(viewedUserId.value))
+const isFollowingUser = computed(() => !isSelf.value && socialStore.isFollowingFromServer(viewedUserId.value))
 
 const tabs = computed(() => {
   if (isSelf.value) {
@@ -51,6 +58,7 @@ const tabs = computed(() => {
       { key: 'favorites', label: '我的收藏' },
       { key: 'following', label: '我的关注' },
       { key: 'followers', label: '我的粉丝' },
+      { key: 'danger', label: '账号注销' },
     ]
   }
   return [
@@ -78,10 +86,15 @@ watch(() => route.fullPath, async () => {
   activeTab.value = 'profile'
   profileMsg.value = ''
   pwdMsg.value = ''
+  tabError.value = ''
   loadError.value = ''
   await loadViewedUser()
   syncProfileForm()
 }, { immediate: true })
+
+watch(activeTab, key => {
+  loadTabData(key)
+})
 
 async function loadViewedUser() {
   const id = viewedUserId.value
@@ -93,6 +106,7 @@ async function loadViewedUser() {
       : await userApi.getCurrentUserDetail()
     if (user) {
       socialStore.syncUserFromProfile(user)
+      socialStore.setUserStatsFromDetail(user)
       if (!route.params.id) {
         userStore.updateUserInfo(user)
       }
@@ -104,6 +118,34 @@ async function loadViewedUser() {
   }
 }
 
+async function loadTabData(key) {
+  if (!viewedUserId.value) return
+  tabError.value = ''
+  const id = viewedUserId.value
+  try {
+    if (key === 'posts') {
+      tabLoading.value = true
+      await socialStore.loadUserPosts(id)
+    } else if (key === 'comments') {
+      tabLoading.value = true
+      await socialStore.loadUserComments(id)
+    } else if (key === 'favorites' && isSelf.value) {
+      tabLoading.value = true
+      await socialStore.loadMyFavorites()
+    } else if (key === 'following') {
+      tabLoading.value = true
+      await socialStore.loadFollowingList(id)
+    } else if (key === 'followers') {
+      tabLoading.value = true
+      await socialStore.loadFollowerList(id)
+    }
+  } catch (e) {
+    tabError.value = e?.message || '加载失败'
+  } finally {
+    tabLoading.value = false
+  }
+}
+
 async function saveProfile() {
   if (!isSelf.value) return
   profileMsg.value = ''
@@ -111,6 +153,7 @@ async function saveProfile() {
     const user = await userApi.updateProfile(profileForm.value)
     userStore.updateUserInfo(user)
     socialStore.syncUserFromProfile(user)
+    socialStore.setUserStatsFromDetail(user)
     syncProfileForm()
     profileMsg.value = '资料已保存'
   } catch (e) {
@@ -142,6 +185,17 @@ async function changePwd() {
 async function handleAvatarChange(event) {
   const file = event.target.files?.[0]
   if (!file || !isSelf.value) return
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  if (!allowed.includes(file.type)) {
+    profileMsg.value = '头像格式仅支持 JPEG / PNG / WEBP / GIF'
+    event.target.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    profileMsg.value = '头像大小不能超过 5MB'
+    event.target.value = ''
+    return
+  }
   try {
     const formData = new FormData()
     formData.append('avatar', file)
@@ -151,22 +205,46 @@ async function handleAvatarChange(event) {
     userStore.updateUserInfo({ avatar })
     socialStore.updateCurrentUserProfile({ avatar })
     profileMsg.value = '头像已更新'
+    toast.success('头像已更新')
   } catch (e) {
     profileMsg.value = e?.message || '头像更新失败'
   }
   event.target.value = ''
 }
 
-function toggleFollow(userId = viewedUserId.value) {
-  socialStore.toggleFollow(userId)
+async function toggleFollow(userId = viewedUserId.value) {
+  if (followBusy.value) return
+  followBusy.value = true
+  try {
+    if (socialStore.isFollowingFromServer(userId)) {
+      await socialStore.unfollowUser(userId)
+    } else {
+      await socialStore.followUser(userId)
+    }
+  } catch (e) {
+    tabError.value = e?.message || '操作失败'
+  } finally {
+    followBusy.value = false
+  }
+}
+
+async function confirmDeleteAccount() {
+  if (deletingAccount.value) return
+  deletingAccount.value = true
+  try {
+    await userApi.deleteAccount()
+    userStore.logout()
+    router.push('/userlogin')
+  } catch (e) {
+    tabError.value = e?.message || '账号注销失败'
+  } finally {
+    deletingAccount.value = false
+    showDeleteConfirm.value = false
+  }
 }
 
 function openUserProfile(userId) {
   router.push(`/users/${userId}`)
-}
-
-function userCardStats(userId) {
-  return socialStore.getUserStats(userId)
 }
 </script>
 
@@ -234,8 +312,9 @@ function userCardStats(userId) {
               <button
                 v-if="!isSelf"
                 @click="toggleFollow()"
+                :disabled="followBusy"
                 :class="[
-                  'shrink-0 px-5 py-2 text-[13px] border transition-colors cursor-pointer',
+                  'shrink-0 px-5 py-2 text-[13px] border transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed',
                   isFollowingUser
                     ? 'text-[#8590A6] border-[#D0D7E2] hover:border-[#1772F6] hover:text-[#1772F6]'
                     : 'bg-[#1772F6] border-[#1772F6] text-white hover:bg-[#0d65e8]'
@@ -276,7 +355,9 @@ function userCardStats(userId) {
                 'w-full text-left px-4 py-3 text-[14px] border-b border-[#EBEBEB] last:border-b-0 transition-colors cursor-pointer',
                 activeTab === tab.key
                   ? 'text-[#1772F6] bg-[#E8F3FF] font-medium border-l-2 border-l-[#1772F6] pl-[14px]'
-                  : 'text-[#444] hover:bg-[#F6F6F6]'
+                  : tab.key === 'danger'
+                    ? 'text-[#D44]  hover:bg-[#FDF1F1]'
+                    : 'text-[#444] hover:bg-[#F6F6F6]'
               ]"
             >
               {{ tab.label }}
@@ -284,6 +365,8 @@ function userCardStats(userId) {
           </nav>
 
           <div class="flex-1 min-w-0 bg-white border border-[#EBEBEB]">
+            <div v-if="tabError" class="px-6 pt-4 text-[13px] text-red-500">{{ tabError }}</div>
+
             <div v-if="activeTab === 'profile'" class="px-6 py-6">
               <h2 class="text-[14px] font-semibold text-[#1A1A1A] mb-5">{{ isSelf ? '基本资料' : '公开资料' }}</h2>
 
@@ -316,6 +399,7 @@ function userCardStats(userId) {
                   >
                     <option value="男">男</option>
                     <option value="女">女</option>
+                    <option value="其他">其他</option>
                     <option value="保密">保密</option>
                   </select>
                 </div>
@@ -399,7 +483,8 @@ function userCardStats(userId) {
               <div class="px-6 py-4 border-b border-[#EBEBEB]">
                 <h2 class="text-[14px] font-semibold text-[#1A1A1A]">{{ isSelf ? '我的发布' : 'TA的发布' }}（{{ userPosts.length }}）</h2>
               </div>
-              <div v-if="userPosts.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
+              <div v-if="tabLoading" class="py-16 text-center text-[#8590A6] text-[14px]">加载中...</div>
+              <div v-else-if="userPosts.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
                 <p class="text-[14px]">暂无发布</p>
               </div>
               <div v-else>
@@ -410,7 +495,7 @@ function userCardStats(userId) {
                   class="px-6 py-4 border-b border-[#EBEBEB] last:border-b-0 cursor-pointer hover:bg-[#FAFAFA] transition-colors"
                 >
                   <div class="flex items-center gap-2 mb-1.5">
-                    <span class="text-[11px] px-1.5 py-0.5 bg-[#E8F3FF] text-[#1772F6] border border-[#C7DEFF]">{{ categoryLabel[post.category] }}</span>
+                    <span class="text-[11px] px-1.5 py-0.5 bg-[#E8F3FF] text-[#1772F6] border border-[#C7DEFF]">{{ categoryLabel[post.category] || post.category }}</span>
                     <span class="text-[12px] text-[#8590A6]">{{ post.time }}</span>
                   </div>
                   <p class="text-[14px] text-[#1A1A1A] line-clamp-2 mb-2">{{ post.content }}</p>
@@ -426,7 +511,8 @@ function userCardStats(userId) {
               <div class="px-6 py-4 border-b border-[#EBEBEB]">
                 <h2 class="text-[14px] font-semibold text-[#1A1A1A]">{{ isSelf ? '我的评论' : 'TA的评论' }}（{{ userComments.length }}）</h2>
               </div>
-              <div v-if="userComments.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
+              <div v-if="tabLoading" class="py-16 text-center text-[#8590A6] text-[14px]">加载中...</div>
+              <div v-else-if="userComments.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
                 <p class="text-[14px]">暂无评论</p>
               </div>
               <div v-else>
@@ -436,7 +522,7 @@ function userCardStats(userId) {
                   @click="$router.push(`/c/${comment.postId}`)"
                   class="px-6 py-4 border-b border-[#EBEBEB] last:border-b-0 cursor-pointer hover:bg-[#FAFAFA] transition-colors"
                 >
-                  <p class="text-[12px] text-[#8590A6] mb-1 truncate">评论了：{{ comment.postTitle }}</p>
+                  <p class="text-[12px] text-[#8590A6] mb-1 truncate">评论了：{{ comment.postTitle || '帖子已删除' }}</p>
                   <p class="text-[14px] text-[#1A1A1A]">{{ comment.content }}</p>
                   <p class="text-[12px] text-[#8590A6] mt-1">{{ comment.time }}</p>
                 </div>
@@ -447,7 +533,8 @@ function userCardStats(userId) {
               <div class="px-6 py-4 border-b border-[#EBEBEB]">
                 <h2 class="text-[14px] font-semibold text-[#1A1A1A]">我的收藏（{{ favoritePosts.length }}）</h2>
               </div>
-              <div v-if="favoritePosts.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
+              <div v-if="tabLoading" class="py-16 text-center text-[#8590A6] text-[14px]">加载中...</div>
+              <div v-else-if="favoritePosts.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
                 <p class="text-[14px]">暂无收藏</p>
               </div>
               <div v-else>
@@ -458,7 +545,7 @@ function userCardStats(userId) {
                   class="px-6 py-4 border-b border-[#EBEBEB] last:border-b-0 cursor-pointer hover:bg-[#FAFAFA] transition-colors"
                 >
                   <div class="flex items-center gap-2 mb-1.5">
-                    <span class="text-[11px] px-1.5 py-0.5 bg-[#E8F3FF] text-[#1772F6] border border-[#C7DEFF]">{{ categoryLabel[post.category] }}</span>
+                    <span class="text-[11px] px-1.5 py-0.5 bg-[#E8F3FF] text-[#1772F6] border border-[#C7DEFF]">{{ categoryLabel[post.category] || post.category }}</span>
                     <span class="text-[12px] text-[#8590A6]">{{ post.time }}</span>
                   </div>
                   <p class="text-[14px] text-[#1A1A1A] line-clamp-2 mb-2">{{ post.content }}</p>
@@ -471,7 +558,8 @@ function userCardStats(userId) {
               <div class="px-6 py-4 border-b border-[#EBEBEB]">
                 <h2 class="text-[14px] font-semibold text-[#1A1A1A]">{{ isSelf ? '我的关注' : 'TA的关注' }}（{{ followingUsers.length }}）</h2>
               </div>
-              <div v-if="followingUsers.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
+              <div v-if="tabLoading" class="py-16 text-center text-[#8590A6] text-[14px]">加载中...</div>
+              <div v-else-if="followingUsers.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
                 <p class="text-[14px]">暂无关注</p>
               </div>
               <div v-else class="divide-y divide-[#EBEBEB]">
@@ -480,19 +568,19 @@ function userCardStats(userId) {
                   <div class="flex-1 min-w-0 cursor-pointer" @click="openUserProfile(user.id)">
                     <p class="text-[14px] font-medium text-[#1A1A1A]">{{ user.username }}</p>
                     <p class="text-[12px] text-[#8590A6] mt-0.5 truncate">{{ user.bio }}</p>
-                    <p class="text-[12px] text-[#A0A8B8] mt-1">粉丝 {{ userCardStats(user.id).followerCount }} · 发布 {{ userCardStats(user.id).postCount }}</p>
                   </div>
                   <button
                     v-if="user.id !== socialStore.currentUserId"
                     @click="toggleFollow(user.id)"
+                    :disabled="followBusy"
                     :class="[
-                      'px-4 py-1.5 text-[12px] border transition-colors cursor-pointer',
-                      socialStore.isFollowing(user.id)
+                      'px-4 py-1.5 text-[12px] border transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed',
+                      socialStore.isFollowingFromServer(user.id) || user.following
                         ? 'text-[#8590A6] border-[#D0D7E2] hover:border-[#1772F6] hover:text-[#1772F6]'
                         : 'bg-[#1772F6] border-[#1772F6] text-white hover:bg-[#0d65e8]'
                     ]"
                   >
-                    {{ socialStore.isFollowing(user.id) ? '已关注' : '关注' }}
+                    {{ socialStore.isFollowingFromServer(user.id) || user.following ? '已关注' : '关注' }}
                   </button>
                 </div>
               </div>
@@ -502,7 +590,8 @@ function userCardStats(userId) {
               <div class="px-6 py-4 border-b border-[#EBEBEB]">
                 <h2 class="text-[14px] font-semibold text-[#1A1A1A]">{{ isSelf ? '我的粉丝' : 'TA的粉丝' }}（{{ followerUsers.length }}）</h2>
               </div>
-              <div v-if="followerUsers.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
+              <div v-if="tabLoading" class="py-16 text-center text-[#8590A6] text-[14px]">加载中...</div>
+              <div v-else-if="followerUsers.length === 0" class="py-16 flex flex-col items-center gap-3 text-[#8590A6]">
                 <p class="text-[14px]">暂无粉丝</p>
               </div>
               <div v-else class="divide-y divide-[#EBEBEB]">
@@ -511,21 +600,51 @@ function userCardStats(userId) {
                   <div class="flex-1 min-w-0 cursor-pointer" @click="openUserProfile(user.id)">
                     <p class="text-[14px] font-medium text-[#1A1A1A]">{{ user.username }}</p>
                     <p class="text-[12px] text-[#8590A6] mt-0.5 truncate">{{ user.bio }}</p>
-                    <p class="text-[12px] text-[#A0A8B8] mt-1">粉丝 {{ userCardStats(user.id).followerCount }} · 发布 {{ userCardStats(user.id).postCount }}</p>
                   </div>
                   <button
                     v-if="user.id !== socialStore.currentUserId"
                     @click="toggleFollow(user.id)"
+                    :disabled="followBusy"
                     :class="[
-                      'px-4 py-1.5 text-[12px] border transition-colors cursor-pointer',
-                      socialStore.isFollowing(user.id)
+                      'px-4 py-1.5 text-[12px] border transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed',
+                      socialStore.isFollowingFromServer(user.id) || user.following
                         ? 'text-[#8590A6] border-[#D0D7E2] hover:border-[#1772F6] hover:text-[#1772F6]'
                         : 'bg-[#1772F6] border-[#1772F6] text-white hover:bg-[#0d65e8]'
                     ]"
                   >
-                    {{ socialStore.isFollowing(user.id) ? '已关注' : '回关' }}
+                    {{ socialStore.isFollowingFromServer(user.id) || user.following ? '已关注' : '回关' }}
                   </button>
                 </div>
+              </div>
+            </div>
+
+            <div v-else-if="activeTab === 'danger' && isSelf" class="px-6 py-6">
+              <h2 class="text-[14px] font-semibold text-[#D44] mb-3">账号注销</h2>
+              <p class="text-[13px] text-[#8590A6] leading-relaxed mb-4">
+                注销后将立即退出登录，账号无法再次登录，个人资料对外不可见，发布内容会保留但作者信息将被隐藏。该操作不可撤销，请确认。
+              </p>
+              <button
+                v-if="!showDeleteConfirm"
+                @click="showDeleteConfirm = true"
+                class="px-5 py-2 border border-[#D44] text-[#D44] text-[13px] hover:bg-[#FDF1F1] transition-colors cursor-pointer"
+              >
+                注销账号
+              </button>
+              <div v-else class="flex items-center gap-3">
+                <button
+                  @click="confirmDeleteAccount"
+                  :disabled="deletingAccount"
+                  class="px-5 py-2 bg-[#D44] text-white text-[13px] hover:bg-[#b73838] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {{ deletingAccount ? '注销中...' : '我已知晓，确认注销' }}
+                </button>
+                <button
+                  @click="showDeleteConfirm = false"
+                  :disabled="deletingAccount"
+                  class="px-5 py-2 border border-[#EBEBEB] text-[#5A6B7C] text-[13px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
               </div>
             </div>
           </div>

@@ -34,6 +34,9 @@ const remaining = computed(() => charLimit - content.value.length)
 
 const sensitiveWords = ['作弊', '代考', '违禁', '枪手']
 
+const VIDEO_MAX_BYTES = 100 * 1024 * 1024
+const videoError = ref('')
+
 function checkSensitive() {
   sensitiveWarning.value = sensitiveWords.some(w => content.value.includes(w))
 }
@@ -52,6 +55,41 @@ function removeImage(i) {
   images.value.splice(i, 1)
 }
 
+function handleVideoUpload(e) {
+  videoError.value = ''
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('video/')) {
+    videoError.value = '请选择视频文件'
+    e.target.value = ''
+    return
+  }
+  if (file.size > VIDEO_MAX_BYTES) {
+    videoError.value = '视频大小不能超过 100MB'
+    e.target.value = ''
+    return
+  }
+  if (video.value?.url) {
+    URL.revokeObjectURL(video.value.url)
+  }
+  video.value = { file, url: URL.createObjectURL(file), name: file.name, size: file.size }
+}
+
+function removeVideo() {
+  if (video.value?.url) {
+    URL.revokeObjectURL(video.value.url)
+  }
+  video.value = null
+  videoError.value = ''
+}
+
+function formatSize(bytes) {
+  if (!Number.isFinite(bytes)) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 async function submit() {
   if (!selectedCategory.value || !content.value.trim()) return
   if (!userStore.isLoggedIn) {
@@ -62,8 +100,9 @@ async function submit() {
   submitError.value = ''
   try {
     let res
-    const hasFiles = images.value.some(x => x.file)
-    if (hasFiles) {
+    const hasImages = images.value.some(x => x.file)
+    const hasVideo = !!video.value?.file
+    if (hasImages || hasVideo) {
       const formData = new FormData()
       formData.append('category', selectedCategory.value)
       formData.append('content', content.value.trim())
@@ -73,6 +112,9 @@ async function submit() {
           formData.append('images', item.file)
         }
       })
+      if (hasVideo) {
+        formData.append('video', video.value.file)
+      }
       res = await postApi.create(formData)
     } else {
       res = await postApi.create({
@@ -196,6 +238,35 @@ async function submit() {
                 <input type="file" accept="image/*" multiple class="hidden" @change="handleImageUpload" />
               </label>
             </div>
+          </div>
+
+          <!-- Video -->
+          <div>
+            <label class="block text-[13px] font-medium text-[#1A1A1A] mb-2">视频（可选，最大 100MB）</label>
+            <div v-if="video" class="border border-[#EBEBEB] bg-[#FAFAFA] p-3 flex items-center gap-3">
+              <video :src="video.url" class="w-28 h-20 bg-black object-cover" muted />
+              <div class="flex-1 min-w-0">
+                <p class="text-[13px] text-[#1A1A1A] truncate">{{ video.name }}</p>
+                <p class="text-[12px] text-[#8590A6] mt-0.5">{{ formatSize(video.size) }}</p>
+              </div>
+              <button
+                @click="removeVideo"
+                class="text-[12px] text-[#8590A6] hover:text-red-500 cursor-pointer transition-colors"
+              >
+                移除
+              </button>
+            </div>
+            <label
+              v-else
+              class="inline-flex items-center gap-2 px-4 py-2 text-[13px] text-[#444] border border-dashed border-[#EBEBEB] hover:border-[#1772F6] hover:text-[#1772F6] cursor-pointer transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span>上传视频</span>
+              <input type="file" accept="video/*" class="hidden" @change="handleVideoUpload" />
+            </label>
+            <p v-if="videoError" class="text-[12px] text-red-500 mt-1.5">{{ videoError }}</p>
           </div>
 
           <!-- Anonymous toggle -->

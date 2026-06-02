@@ -30,5 +30,18 @@ public class PostEntity {
 
     private Integer favoriteCount;
 
+    /**
+     * 热度分数（用于热门帖子排序）
+     */
+    private Long hotScore;
+
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    /**
+     * 软删除时间
+     * <p>非null表示该帖子已被删除，查询时需过滤 deleted_at is null</p>
+     */
+    private LocalDateTime deletedAt;
 }

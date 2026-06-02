@@ -92,7 +92,7 @@ class PostServiceImplTest {
         when(postMapper.selectImageMediaByPostIds(eq(List.of(1001L)))).thenReturn(List.of(media));
         when(postMapper.selectAuthorsByIds(any())).thenReturn(List.of(authorEntity));
 
-        PostPageResponse response = service.getPosts("social", null, null);
+        PostPageResponse response = service.getPosts("social", null, null, null);
 
         assertEquals(1L, response.getTotal());
         assertEquals(1, response.getPage());
@@ -110,7 +110,7 @@ class PostServiceImplTest {
     void getPosts_shouldRejectTooLargePageSize() {
         PostServiceImpl service = new PostServiceImpl(postMapper);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> service.getPosts(null, 1, 101));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> service.getPosts(null, 1, 101, null));
 
         assertEquals(400, ex.getStatusCode().value());
         assertEquals("pageSize不能超过100", ex.getReason());
@@ -122,7 +122,7 @@ class PostServiceImplTest {
         PostServiceImpl service = new PostServiceImpl(postMapper);
         when(postMapper.selectVisiblePostById(999L)).thenReturn(null);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> service.getPostDetail(999L));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> service.getPostDetail(999L, null));
 
         assertEquals(404, ex.getStatusCode().value());
         assertEquals("帖子不存在", ex.getReason());

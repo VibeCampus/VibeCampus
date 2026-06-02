@@ -39,4 +39,14 @@ public class UserDetailResponse {
     private Integer status;
     // 标识是否为用户本人
     private Boolean isCurrentUser;
+    //是否用户是否关注此人
+    private Boolean following;
+    //关注数
+    private Long followingCount;
+    //粉丝数
+    private Long followerCount;
+    //发布数
+    private Long postCount;
+    //收藏数
+    private Long favoriteCount;
 }

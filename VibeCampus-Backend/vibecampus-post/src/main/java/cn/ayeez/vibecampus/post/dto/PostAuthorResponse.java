@@ -1,7 +1,8 @@
 package cn.ayeez.vibecampus.post.dto;
 
-import lombok.AllArgsConstructor;
+import cn.ayeez.vibecampus.common.dto.AuthorInfo;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 /**
@@ -9,12 +10,6 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
-public class PostAuthorResponse {
-
-    private Long id;
-
-    private String username;
-
-    private String avatar;
+@EqualsAndHashCode(callSuper = true)
+public class PostAuthorResponse extends AuthorInfo {
 }

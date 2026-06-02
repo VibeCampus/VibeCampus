@@ -1,97 +1,67 @@
-import http from './index'
+const NOT_IMPLEMENTED_NOTE = '消息中心功能尚未上线'
+let warned = false
+
+function emptyPage() {
+  return { list: [], total: 0, unreadCount: 0 }
+}
+
+function warnOnce() {
+  if (warned) return
+  warned = true
+  if (typeof window !== 'undefined') {
+    import('@/composables/useToast').then(({ toast }) => toast.info(NOT_IMPLEMENTED_NOTE))
+  }
+}
 
 /**
  * 消息模块 API
+ *
+ * 注意：后端目前未提供 /notifications、/messages/* 端点，所有方法暂时返回空数据。
+ * 等后端补齐后，把 fallback 替换成真正的 http 请求即可。
  */
 const messageApi = {
-  // ── 互动通知 ────────────────────────────────────────────
-
-  /**
-   * 获取互动通知列表（点赞/评论/回复）
-   * GET /notifications
-   * @param {{ type?: 'like'|'comment'|'reply', page?: number, pageSize?: number }} params
-   * @returns {{ list: Notification[], total: number, unreadCount: number }}
-   */
-  getNotifications(params = {}) {
-    return http.get('/notifications', { params })
+  getNotifications() {
+    warnOnce()
+    return Promise.resolve(emptyPage())
   },
 
-  /**
-   * 标记全部互动通知为已读
-   * PUT /notifications/read-all
-   */
   markNotificationsRead() {
-    return http.put('/notifications/read-all')
+    warnOnce()
+    return Promise.resolve()
   },
 
-  // ── 私信 ────────────────────────────────────────────────
-
-  /**
-   * 获取私信会话列表
-   * GET /messages/chats
-   * @returns {{ list: ChatSession[] }}
-   */
   getChatList() {
-    return http.get('/messages/chats')
+    warnOnce()
+    return Promise.resolve({ list: [] })
   },
 
-  /**
-   * 获取与某用户的聊天记录
-   * GET /messages/chats/:userId
-   * @param {string|number} userId
-   * @param {{ page?: number, pageSize?: number }} params
-   * @returns {{ list: Message[], total: number }}
-   */
-  getChatMessages(userId, params = {}) {
-    return http.get(`/messages/chats/${userId}`, { params })
+  getChatMessages() {
+    warnOnce()
+    return Promise.resolve({ list: [], total: 0 })
   },
 
-  /**
-   * 发送私信
-   * POST /messages/chats/:userId
-   * @param {string|number} userId  收件人 ID
-   * @param {{ content: string }} data
-   * @returns {Message}
-   */
-  sendMessage(userId, data) {
-    return http.post(`/messages/chats/${userId}`, data)
+  sendMessage() {
+    warnOnce()
+    return Promise.reject(new Error(NOT_IMPLEMENTED_NOTE))
   },
 
-  /**
-   * 标记与某用户的私信全部已读
-   * PUT /messages/chats/:userId/read
-   */
-  markChatRead(userId) {
-    return http.put(`/messages/chats/${userId}/read`)
+  markChatRead() {
+    warnOnce()
+    return Promise.resolve()
   },
 
-  // ── 系统通知 ─────────────────────────────────────────────
-
-  /**
-   * 获取系统通知列表（公告/警告）
-   * GET /messages/system
-   * @param {{ page?: number, pageSize?: number }} params
-   * @returns {{ list: SystemMessage[], total: number, unreadCount: number }}
-   */
-  getSystemMessages(params = {}) {
-    return http.get('/messages/system', { params })
+  getSystemMessages() {
+    warnOnce()
+    return Promise.resolve(emptyPage())
   },
 
-  /**
-   * 标记系统通知已读
-   * PUT /messages/system/:id/read
-   */
-  markSystemRead(id) {
-    return http.put(`/messages/system/${id}/read`)
+  markSystemRead() {
+    warnOnce()
+    return Promise.resolve()
   },
 
-  /**
-   * 获取未读消息总数（用于导航栏徽标）
-   * GET /messages/unread-count
-   * @returns {{ total: number, notification: number, chat: number, system: number }}
-   */
   getUnreadCount() {
-    return http.get('/messages/unread-count')
+    return Promise.resolve({ total: 0, notification: 0, chat: 0, system: 0 })
   },
 }
 

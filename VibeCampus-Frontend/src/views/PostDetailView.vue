@@ -1,10 +1,13 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
 import UserAvatar from '@/components/UserAvatar.vue'
 import postApi from '@/api/post'
+import commentApi from '@/api/comment'
+import { normalizeComment } from '@/api/normalize'
+import { toast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,10 +17,18 @@ const loadError = ref('')
 
 const liked = ref(false)
 const saved = ref(false)
+const localLikes = ref(0)
+const localFavorites = ref(0)
 const lightboxImg = ref(null)
 const newComment = ref('')
 const replyTarget = ref(null)
 const replyContent = ref('')
+
+const comments = ref([])
+const commentsLoading = ref(false)
+const commentError = ref('')
+const submittingComment = ref(false)
+const submittingReply = ref(false)
 
 const categoryLabel = {
   social_find: '捞人',
@@ -30,19 +41,6 @@ const categoryLabel = {
 
 const postId = computed(() => Number(route.params.id))
 const post = computed(() => socialStore.getPostById(postId.value))
-const comments = computed(() => socialStore.getCommentsByPostId(postId.value))
-
-onMounted(async () => {
-  loadError.value = ''
-  try {
-    const raw = await postApi.getDetail(postId.value)
-    if (raw) {
-      socialStore.upsertPostFromServer(raw)
-    }
-  } catch (e) {
-    loadError.value = e?.message || '加载失败'
-  }
-})
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const currentUser = computed(() => socialStore.currentUser)
 const showFollowButton = computed(() =>
@@ -51,12 +49,100 @@ const showFollowButton = computed(() =>
   post.value.author.id !== socialStore.currentUserId,
 )
 
-function toggleLike() {
-  liked.value = !liked.value
+watch(
+  () => post.value,
+  next => {
+    if (!next) return
+    liked.value = !!next.liked
+    saved.value = !!next.favorited
+    localLikes.value = next.likes || 0
+    localFavorites.value = next.favorites || 0
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  loadError.value = ''
+  try {
+    const raw = await postApi.getDetail(postId.value)
+    if (raw) {
+      socialStore.upsertPostFromServer(raw)
+      liked.value = !!raw.liked
+      saved.value = !!raw.favorited
+      localLikes.value = raw.likes || 0
+      localFavorites.value = raw.favorites || 0
+    }
+  } catch (e) {
+    loadError.value = e?.message || '加载失败'
+  }
+  await loadComments()
+})
+
+async function loadComments() {
+  commentsLoading.value = true
+  commentError.value = ''
+  try {
+    const res = await commentApi.getList(postId.value, { page: 1, pageSize: 100 })
+    const list = Array.isArray(res?.list) ? res.list : []
+    comments.value = list.map(normalizeComment).filter(Boolean)
+  } catch (e) {
+    commentError.value = e?.message || '评论加载失败'
+    comments.value = []
+  } finally {
+    commentsLoading.value = false
+  }
 }
 
-function toggleSave() {
-  saved.value = !saved.value
+async function toggleLike() {
+  if (!isLoggedIn.value) {
+    router.push({ path: '/userlogin', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!post.value?.id) return
+  const prevLiked = liked.value
+  const prevCount = localLikes.value
+  liked.value = !prevLiked
+  localLikes.value = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+  try {
+    const res = await postApi.toggleLike(post.value.id)
+    liked.value = !!res?.liked
+    if (typeof res?.likeCount === 'number') localLikes.value = res.likeCount
+    socialStore.upsertPostFromServer({
+      ...post.value,
+      liked: liked.value,
+      likes: localLikes.value,
+      likeCount: localLikes.value,
+    })
+  } catch {
+    liked.value = prevLiked
+    localLikes.value = prevCount
+  }
+}
+
+async function toggleSave() {
+  if (!isLoggedIn.value) {
+    router.push({ path: '/userlogin', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!post.value?.id) return
+  const prevSaved = saved.value
+  const prevCount = localFavorites.value
+  saved.value = !prevSaved
+  localFavorites.value = prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1
+  try {
+    const res = await postApi.toggleFavorite(post.value.id)
+    saved.value = !!res?.favorited
+    if (typeof res?.favoriteCount === 'number') localFavorites.value = res.favoriteCount
+    socialStore.upsertPostFromServer({
+      ...post.value,
+      favorited: saved.value,
+      favorites: localFavorites.value,
+      favoriteCount: localFavorites.value,
+    })
+  } catch {
+    saved.value = prevSaved
+    localFavorites.value = prevCount
+  }
 }
 
 function toggleFollow() {
@@ -64,17 +150,102 @@ function toggleFollow() {
   socialStore.toggleFollow(post.value.author.id)
 }
 
-function submitComment() {
-  if (!newComment.value.trim() || !post.value) return
-  socialStore.addComment(post.value.id, newComment.value.trim())
-  newComment.value = ''
+async function submitComment() {
+  const content = newComment.value.trim()
+  if (!content || !post.value || submittingComment.value) return
+  submittingComment.value = true
+  commentError.value = ''
+  try {
+    const res = await commentApi.create(post.value.id, { content })
+    const created = normalizeComment(res)
+    if (created) {
+      created.replies = created.replies || []
+      comments.value.unshift(created)
+    }
+    newComment.value = ''
+  } catch (e) {
+    commentError.value = e?.message || '评论发布失败'
+  } finally {
+    submittingComment.value = false
+  }
 }
 
-function submitReply() {
-  if (!replyContent.value.trim() || !replyTarget.value || !post.value) return
-  socialStore.addReply(post.value.id, replyTarget.value.commentId, replyContent.value.trim())
+async function submitReply() {
+  const content = replyContent.value.trim()
+  if (!content || !replyTarget.value || submittingReply.value) return
+  submittingReply.value = true
+  try {
+    const payload = { content }
+    if (replyTarget.value.replyToUserId) {
+      payload.replyToUserId = replyTarget.value.replyToUserId
+    }
+    const res = await commentApi.reply(replyTarget.value.commentId, payload)
+    const created = normalizeComment(res)
+    const parent = comments.value.find(c => c.id === replyTarget.value.commentId)
+    if (parent && created) {
+      parent.replies = [...(parent.replies || []), created]
+    }
+    replyContent.value = ''
+    replyTarget.value = null
+  } catch (e) {
+    commentError.value = e?.message || '回复发布失败'
+  } finally {
+    submittingReply.value = false
+  }
+}
+
+async function toggleCommentLike(comment) {
+  if (!isLoggedIn.value) {
+    router.push({ path: '/userlogin', query: { redirect: route.fullPath } })
+    return
+  }
+  try {
+    const res = await commentApi.toggleLike(comment.id)
+    comment.liked = !!res?.liked
+    comment.likes = res?.likeCount ?? comment.likes
+  } catch (e) {
+    commentError.value = e?.message || '点赞失败'
+  }
+}
+
+function openReplyTo(comment, reply = null) {
+  replyTarget.value = {
+    commentId: comment.id,
+    author: reply?.author?.username || comment.author?.username || '',
+    replyToUserId: reply?.author?.id || null,
+  }
   replyContent.value = ''
-  replyTarget.value = null
+}
+
+function canDelete(target) {
+  const authorId = target?.author?.id
+  const myId = currentUser.value?.id
+  return !!authorId && !!myId && authorId === myId
+}
+
+async function deleteComment(comment) {
+  if (!comment?.id) return
+  if (typeof window !== 'undefined' && !window.confirm('确定删除这条评论？')) return
+  try {
+    await commentApi.remove(comment.id)
+    const idx = comments.value.findIndex(c => c.id === comment.id)
+    if (idx >= 0) comments.value.splice(idx, 1)
+    toast.success('评论已删除')
+  } catch (e) {
+    commentError.value = e?.message || '删除失败'
+  }
+}
+
+async function deleteReply(parent, reply) {
+  if (!reply?.id || !parent) return
+  if (typeof window !== 'undefined' && !window.confirm('确定删除这条回复？')) return
+  try {
+    await commentApi.remove(reply.id)
+    parent.replies = (parent.replies || []).filter(r => r.id !== reply.id)
+    toast.success('回复已删除')
+  } catch (e) {
+    commentError.value = e?.message || '删除失败'
+  }
 }
 </script>
 
@@ -142,7 +313,7 @@ function submitReply() {
               <div class="text-[15px] text-[#1A1A1A] leading-[1.85] whitespace-pre-wrap mb-5">{{ post.content }}</div>
 
               <div
-                v-if="post.images.length"
+                v-if="post.images && post.images.length"
                 class="grid gap-1 mb-5"
                 :class="post.images.length === 1 ? 'grid-cols-1' : post.images.length === 2 ? 'grid-cols-2' : 'grid-cols-3'"
               >
@@ -165,7 +336,7 @@ function submitReply() {
                     <path stroke-linecap="round" stroke-linejoin="round"
                       d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904" />
                   </svg>
-                  赞同 {{ post.likes + (liked ? 1 : 0) }}
+                  赞同 {{ localLikes }}
                 </button>
                 <button
                   @click="toggleSave"
@@ -187,9 +358,17 @@ function submitReply() {
           </div>
 
           <div class="bg-white border border-[#EBEBEB]">
-            <div class="px-6 py-4 border-b border-[#EBEBEB]">
+            <div class="px-6 py-4 border-b border-[#EBEBEB] flex items-center justify-between">
               <h2 class="text-[14px] font-semibold text-[#1A1A1A]">{{ comments.length }} 条评论</h2>
+              <span v-if="commentsLoading" class="text-[12px] text-[#8590A6]">加载中…</span>
             </div>
+
+            <p
+              v-if="commentError"
+              class="mx-6 mt-3 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2"
+            >
+              {{ commentError }}
+            </p>
 
             <div class="px-6 py-4 border-b border-[#EBEBEB]">
               <div v-if="!isLoggedIn" class="flex items-center gap-3 py-2">
@@ -211,17 +390,17 @@ function submitReply() {
                   <div class="flex justify-end mt-2">
                     <button
                       @click="submitComment"
-                      :disabled="!newComment.trim()"
+                      :disabled="!newComment.trim() || submittingComment"
                       class="px-5 py-1.5 bg-[#1772F6] text-white text-[13px] hover:bg-[#0d65e8] disabled:opacity-40 cursor-pointer transition-colors"
                     >
-                      发布
+                      {{ submittingComment ? '发布中…' : '发布' }}
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div v-if="comments.length === 0" class="px-6 py-12 text-center text-[13px] text-[#8590A6]">
+            <div v-if="!commentsLoading && comments.length === 0" class="px-6 py-12 text-center text-[13px] text-[#8590A6]">
               暂无评论，来抢沙发吧
             </div>
 
@@ -235,17 +414,27 @@ function submitReply() {
                   </div>
                   <p class="text-[14px] text-[#1A1A1A] leading-relaxed">{{ comment.content }}</p>
                   <div class="flex items-center gap-4 mt-2 text-[12px] text-[#8590A6]">
-                    <button class="flex items-center gap-1 hover:text-[#1772F6] cursor-pointer transition-colors">
+                    <button
+                      @click="toggleCommentLike(comment)"
+                      :class="['flex items-center gap-1 cursor-pointer transition-colors', comment.liked ? 'text-[#1772F6]' : 'hover:text-[#1772F6]']"
+                    >
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48" />
                       </svg>
                       {{ comment.likes }}
                     </button>
                     <button
-                      @click="replyTarget = { commentId: comment.id, author: comment.author?.username }"
+                      @click="openReplyTo(comment)"
                       class="hover:text-[#1772F6] cursor-pointer transition-colors"
                     >
                       回复
+                    </button>
+                    <button
+                      v-if="canDelete(comment)"
+                      @click="deleteComment(comment)"
+                      class="hover:text-red-500 cursor-pointer transition-colors"
+                    >
+                      删除
                     </button>
                   </div>
 
@@ -257,9 +446,10 @@ function submitReply() {
                     />
                     <button
                       @click="submitReply"
-                      class="px-4 h-8 bg-[#1772F6] text-white text-[12px] hover:bg-[#0d65e8] cursor-pointer transition-colors"
+                      :disabled="!replyContent.trim() || submittingReply"
+                      class="px-4 h-8 bg-[#1772F6] text-white text-[12px] hover:bg-[#0d65e8] disabled:opacity-40 cursor-pointer transition-colors"
                     >
-                      回复
+                      {{ submittingReply ? '发布中…' : '回复' }}
                     </button>
                     <button
                       @click="replyTarget = null"
@@ -269,16 +459,35 @@ function submitReply() {
                     </button>
                   </div>
 
-                  <div v-if="comment.replies.length" class="mt-3 bg-[#F7F8FA] border-l-2 border-[#1772F6] pl-3">
+                  <div v-if="comment.replies && comment.replies.length" class="mt-3 bg-[#F7F8FA] border-l-2 border-[#1772F6] pl-3">
                     <div v-for="reply in comment.replies" :key="reply.id" class="py-3 border-b border-[#EBEBEB] last:border-b-0">
                       <div class="flex items-start gap-2.5">
                         <UserAvatar :user="reply.author" size-class="w-7 h-7" text-class="text-[11px]" />
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-2">
                             <span class="text-[12px] font-medium text-[#1772F6]">{{ reply.author?.username }}</span>
-                            <span class="text-[12px] text-[#8590A6]">{{ reply.time }}</span>
+                            <span v-if="reply.replyToUser" class="text-[12px] text-[#8590A6]">
+                              回复 <span class="text-[#1772F6]">@{{ reply.replyToUser.username }}</span>
+                            </span>
+                            <span class="text-[12px] text-[#8590A6]">· {{ reply.time }}</span>
                           </div>
                           <p class="text-[13px] text-[#1A1A1A] mt-0.5">{{ reply.content }}</p>
+                          <div class="flex items-center gap-3 mt-1">
+                            <button
+                              v-if="isLoggedIn"
+                              @click="openReplyTo(comment, reply)"
+                              class="text-[12px] text-[#8590A6] hover:text-[#1772F6] cursor-pointer transition-colors"
+                            >
+                              回复
+                            </button>
+                            <button
+                              v-if="canDelete(reply)"
+                              @click="deleteReply(comment, reply)"
+                              class="text-[12px] text-[#8590A6] hover:text-red-500 cursor-pointer transition-colors"
+                            >
+                              删除
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -297,7 +506,7 @@ function submitReply() {
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48" />
           </svg>
-          {{ post.likes + (liked ? 1 : 0) }}
+          {{ localLikes }}
         </button>
         <button @click="toggleSave"
           :class="['w-12 h-12 flex flex-col items-center justify-center gap-0.5 border transition-colors cursor-pointer text-[11px]',

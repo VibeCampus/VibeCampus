@@ -1,16 +1,29 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { useSocialStore } from '@/stores/social'
 import UserAvatar from '@/components/UserAvatar.vue'
+import postApi from '@/api/post'
 
 const props = defineProps({
   post: { type: Object, required: true },
 })
 
 const router = useRouter()
+const userStore = useUserStore()
 const socialStore = useSocialStore()
-const liked = ref(false)
+const liked = ref(!!props.post.liked)
+const localLikes = ref(props.post.likes || 0)
+const likePending = ref(false)
+
+watch(
+  () => [props.post.liked, props.post.likes],
+  ([newLiked, newLikes]) => {
+    liked.value = !!newLiked
+    localLikes.value = newLikes || 0
+  },
+)
 
 const categoryConfig = {
   social_find: { label: '捞人', color: 'text-violet-600 bg-violet-50 border-violet-100' },
@@ -34,9 +47,35 @@ function goDetail() {
   router.push(`/c/${props.post.id}`)
 }
 
-function toggleLike(e) {
+async function toggleLike(e) {
   e.stopPropagation()
-  liked.value = !liked.value
+  if (likePending.value) return
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/userlogin', query: { redirect: router.currentRoute.value.fullPath } })
+    return
+  }
+  if (!props.post?.id) return
+  const prevLiked = liked.value
+  const prevCount = localLikes.value
+  liked.value = !prevLiked
+  localLikes.value = prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+  likePending.value = true
+  try {
+    const res = await postApi.toggleLike(props.post.id)
+    liked.value = !!res?.liked
+    if (typeof res?.likeCount === 'number') localLikes.value = res.likeCount
+    socialStore.upsertPostFromServer({
+      ...props.post,
+      liked: liked.value,
+      likes: localLikes.value,
+      likeCount: localLikes.value,
+    })
+  } catch {
+    liked.value = prevLiked
+    localLikes.value = prevCount
+  } finally {
+    likePending.value = false
+  }
 }
 
 function toggleFollow(e) {
@@ -113,7 +152,7 @@ function toggleFollow(e) {
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
         </svg>
-        赞同 {{ (post.likes || 0) + (liked ? 1 : 0) }}
+        赞同 {{ localLikes }}
       </button>
       <button @click.stop class="flex items-center gap-1 hover:text-[#1772F6] transition-colors cursor-pointer">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
